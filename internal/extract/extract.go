@@ -11,7 +11,15 @@ import (
 	"time"
 
 	readability "github.com/go-shiori/go-readability"
+	"github.com/microcosm-cc/bluemonday"
 )
+
+// htmlPolicy sanitizes readability's output before it is ever stored or served.
+// Article HTML is untrusted (it came from an arbitrary page), so without this a
+// saved <script> or onerror= is a stored-XSS waiting to fire in the reader view.
+// UGCPolicy allows the formatting a reader needs (headings, links, images, code)
+// and strips everything executable. Compiled once; safe for concurrent use.
+var htmlPolicy = bluemonday.UGCPolicy()
 
 // Article is the distilled result of fetching and cleaning a page.
 type Article struct {
@@ -70,7 +78,7 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (Article, error) {
 	return Article{
 		URL:      u.String(),
 		Title:    title,
-		HTML:     art.Content,
+		HTML:     htmlPolicy.Sanitize(art.Content),
 		Text:     strings.TrimSpace(art.TextContent),
 		Excerpt:  strings.TrimSpace(art.Excerpt),
 		SiteName: strings.TrimSpace(art.SiteName),
