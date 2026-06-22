@@ -1,0 +1,146 @@
+# Tract
+
+A self-hosted **read-later / research reader** — an owned, $0 alternative to
+**Pocket + Readwise + Feedly**. Save any URL, get a clean distraction-free
+reader copy, full-text search everything you've saved, and (next) keep
+highlights — all from a single binary you run yourself. No accounts, no cloud,
+no paid APIs.
+
+> Status: early. The architecture, API, search, and storage are real and
+> tested; the UI is a minimal functional shell pending a dedicated design pass.
+> See [Roadmap](#roadmap).
+
+## What it is
+
+When you save a link, Tract fetches the page, runs a readability pass to strip
+nav/ads/boilerplate down to the article, and stores the title + clean text +
+cleaned HTML in a local SQLite database. That text is mirrored into an FTS5
+index, so search is instant and runs over the *full body*, not just titles.
+Everything is local and self-hostable.
+
+## Architecture & decisions
+
+### The problem
+Pocket/Readwise/Feedly are SaaS: your reading lives on someone else's server,
+behind a subscription, exportable only on their terms. The goal is the same
+capability — save, read clean, search, highlight — but **owned**: one binary,
+one local database, runs anywhere, costs nothing.
+
+### Constraints
+- **$0, no paid APIs.** Extraction and search must be fully local/offline.
+- **macOS-portable** (primary dev machine), Linux-deployable for hosting.
+- **Single deployable artifact** — easy to host, easy to demo from one URL.
+
+### Shape
+A layered Go service serving a Vite/React SPA from the *same* binary:
+
+```
+cmd/tract/main.go      wiring: open DB, mount API + embedded frontend, listen
+internal/store         SQLite + FTS5 (persistence, search)
+internal/extract       URL fetch + readability (clean article)
+internal/api           HTTP handlers (net/http ServeMux, method routing)
+frontend/              Vite + React + TypeScript SPA
+```
+
+### Key trade-offs
+
+**Pure-Go SQLite (`modernc.org/sqlite`), not the CGO `mattn` driver.**
+The CGO driver is faster but needs a C toolchain and cross-compiles painfully.
+A read-later tool is not write-throughput-bound, so the pure-Go engine's
+cost is irrelevant — and in exchange the binary builds and cross-compiles with
+just `go build`, no C compiler in the deploy image. Gotchas honored: driver name
+is `"sqlite"` (not `"sqlite3"`); FTS5 is compiled in but *loadable extensions
+are not available*, so search uses the built-in FTS5 module; the DB is opened
+with `?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)` and a single open
+connection to keep WAL writes serialized and dodge `database is locked`.
+
+**FTS5 with content-table triggers, not a hand-rolled `LIKE` search.**
+`LIKE '%term%'` can't rank, is slow, and tokenizes nothing. FTS5 ships with
+SQLite, gives real tokenized matching + prefix search for type-ahead, and stays
+in lockstep with `items` via `AFTER INSERT/UPDATE/DELETE` triggers — so a
+deleted article also leaves the index (there's a test that falsifies exactly
+this). User input is sanitized into a phrase-AND MATCH expression so punctuation
+can't trigger FTS5 operator-syntax errors.
+
+**stdlib `net/http` with Go 1.22 ServeMux method routing, no router dep.**
+Since Go 1.22 the standard mux understands `"POST /api/items"` and
+`"/api/items/{id}"` with `r.PathValue("id")`. For a handful of routes that's the
+entire feature set a third-party router would add — so we take zero router
+dependencies and stay on the standard library.
+
+**`go-readability` for extraction.** A Go port of Mozilla's Readability; runs
+offline, no API key, no cost. (Upstream has since been renamed; the pinned
+module still builds and works — swapping to the new import path is a trivial,
+isolated change behind the `internal/extract` boundary.)
+
+**Frontend embedded via `//go:embed`, served by the same binary.** One artifact
+to deploy. Vite is configured with `base: "./"` so assets resolve relatively and
+don't 404 when served from a subpath. A committed placeholder `index.html` keeps
+the embed directive valid before the first frontend build; `scripts/build.sh`
+stages the real build over it.
+
+**Rendering article HTML (`dangerouslySetInnerHTML`).** Deliberate and noted:
+the content is server-cleaned by readability, but it is still third-party HTML.
+For a single-user self-hosted tool the risk is bounded; before any multi-user or
+public deployment this needs server-side sanitization (e.g. bluemonday) — a
+tracked roadmap item, not an oversight.
+
+## API
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/api/items` | `{url}` → fetch, extract, store; returns the item |
+| `GET` | `/api/items` | list items, newest first |
+| `GET` | `/api/items/{id}` | full item (body + html + highlights) for the reader |
+| `DELETE` | `/api/items/{id}` | delete an item (cascades highlights + FTS) |
+| `GET` | `/api/search?q=` | FTS5 search over title + body |
+| `POST` | `/api/items/{id}/highlights` | `{text}` → attach a highlight |
+| `GET` | `/api/health` | liveness probe |
+
+## Run locally
+
+Prereqs: Go ≥ 1.22, Node ≥ 18.
+
+```bash
+# one-shot: build frontend + binary, then run on :8080
+make run
+# open http://localhost:8080
+```
+
+Two-terminal dev loop (hot-reload frontend, live backend):
+
+```bash
+# terminal 1 — Go API on :8080
+go run ./cmd/tract
+# terminal 2 — Vite dev server, proxies /api to :8080
+make frontend-dev
+```
+
+Environment: `TRACT_ADDR` (default `:8080`), `TRACT_DB` (default `tract.db`).
+
+## Tests
+
+```bash
+go test ./...   # store/FTS5 round-trip (incl. falsifying absent-term + delete)
+go vet ./...
+```
+
+## Roadmap
+
+**Done (this block):** layered Go service · pure-Go SQLite + FTS5 with
+trigger-kept index · readability extraction · all 7 endpoints wired · single-
+binary static serving · React shell (add / list / search / reader) · FTS5
+round-trip test (positive + falsifying negatives) · green build/vet/test.
+
+**Next blocks:**
+- **Highlights UI** — capture/list passages in the reader (endpoint already exists).
+- **Tags & filtering** — organize the library beyond search.
+- **HTML sanitization** — bluemonday pass before render; required pre-public.
+- **Design pass** — replace the functional shell with the real visual design
+  (typography, reading experience, light/dark) via the design-studio loop.
+- **Feeds (the Feedly leg)** — subscribe to RSS, auto-ingest into the library.
+- **Hosting** — deploy the single binary to a live URL.
+
+## License
+
+Personal project. Not yet licensed for redistribution.

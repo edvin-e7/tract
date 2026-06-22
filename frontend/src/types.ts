@@ -1,0 +1,19 @@
+export interface Item {
+  id: number;
+  url: string;
+  title: string;
+  excerpt: string;
+  siteName: string;
+  createdAt: string;
+  // present only on the single-item (reader) fetch
+  body?: string;
+  html?: string;
+  highlights?: Highlight[];
+}
+
+export interface Highlight {
+  id: number;
+  itemId: number;
+  text: string;
+  createdAt: string;
+}

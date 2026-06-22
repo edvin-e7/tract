@@ -1,0 +1,189 @@
+/* Minimal, clean typographic shell. NOT the final visual design — that comes
+   from a dedicated design pass. Goal here: legible, functional, no slop. */
+
+:root {
+  --ink: #1a1a1a;
+  --muted: #6b6b6b;
+  --line: #e6e3dd;
+  --paper: #faf9f6;
+  --accent: #1a1a1a;
+  --max: 720px;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1.6;
+}
+
+button,
+input {
+  font-family: inherit;
+}
+
+.app,
+.reader {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 5rem;
+}
+
+.masthead h1 {
+  font-size: 2.4rem;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.tagline {
+  color: var(--muted);
+  margin: 0.25rem 0 2rem;
+}
+
+.add {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.add input {
+  flex: 1;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 1rem;
+  background: #fff;
+}
+
+.add button {
+  padding: 0 1.1rem;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.add button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.search {
+  width: 100%;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+  background: #fff;
+}
+
+.error {
+  color: #a11;
+  font-size: 0.9rem;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.empty {
+  color: var(--muted);
+  padding: 1.5rem 0;
+}
+
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  border-top: 1px solid var(--line);
+  padding: 1.1rem 0;
+}
+
+.row-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+}
+
+.row-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+.row-meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.row-excerpt {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+.row-del {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.25rem;
+}
+
+.row-del:hover {
+  color: #a11;
+}
+
+.back {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.95rem;
+  padding: 0 0 1.5rem;
+}
+
+.byline {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: -0.5rem;
+}
+
+.byline a {
+  color: var(--muted);
+}
+
+.prose {
+  font-size: 1.15rem;
+  line-height: 1.75;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+}
+
+.muted {
+  color: var(--muted);
+}
