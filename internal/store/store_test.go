@@ -82,6 +82,41 @@ func TestDeleteUnindexes(t *testing.T) {
 	}
 }
 
+// TestListHighlightCount proves the library's per-row count reflects reality:
+// an item with 2 highlights reports 2, an item with none reports 0 (the
+// load-bearing negative — a broken LEFT JOIN/GROUP BY would over- or
+// under-count, e.g. dropping the zero-highlight row entirely).
+func TestListHighlightCount(t *testing.T) {
+	s := newTestStore(t)
+
+	marked, _ := s.AddItem(Item{URL: "https://x.test/marked", Title: "Marked", Body: "b"})
+	bare, _ := s.AddItem(Item{URL: "https://x.test/bare", Title: "Bare", Body: "b"})
+	if _, err := s.AddHighlight(marked.ID, "first"); err != nil {
+		t.Fatalf("highlight: %v", err)
+	}
+	if _, err := s.AddHighlight(marked.ID, "second"); err != nil {
+		t.Fatalf("highlight: %v", err)
+	}
+
+	counts := map[int64]int{}
+	items, err := s.ListItems()
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(items) != 2 {
+		t.Fatalf("expected both items listed (zero-highlight row must not vanish), got %d", len(items))
+	}
+	for _, it := range items {
+		counts[it.ID] = it.HighlightCount
+	}
+	if counts[marked.ID] != 2 {
+		t.Fatalf("marked item count = %d, want 2", counts[marked.ID])
+	}
+	if counts[bare.ID] != 0 {
+		t.Fatalf("bare item count = %d, want 0", counts[bare.ID])
+	}
+}
+
 // TestHighlightsAndNotFound covers the highlight path plus the not-found seams.
 func TestHighlightsAndNotFound(t *testing.T) {
 	s := newTestStore(t)

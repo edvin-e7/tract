@@ -29,6 +29,9 @@ type Item struct {
 	SiteName   string      `json:"siteName"`
 	CreatedAt  time.Time   `json:"createdAt"`
 	Highlights []Highlight `json:"highlights,omitempty"`
+	// HighlightCount is populated by list/search queries (where the full
+	// Highlights slice is not loaded) so the library can show a per-row count.
+	HighlightCount int `json:"highlightCount"`
 }
 
 // Highlight is a user-saved passage attached to an item.
@@ -131,8 +134,11 @@ func (s *Store) AddItem(it Item) (Item, error) {
 // ListItems returns all items, newest first. Order is explicit (created_at DESC,
 // id DESC) so output is deterministic and never relies on insertion/scan order.
 func (s *Store) ListItems() ([]Item, error) {
-	rows, err := s.db.Query(
-		`SELECT id, url, title, excerpt, site_name, created_at FROM items ORDER BY created_at DESC, id DESC`)
+	rows, err := s.db.Query(`
+		SELECT i.id, i.url, i.title, i.excerpt, i.site_name, i.created_at, COUNT(h.id)
+		FROM items i LEFT JOIN highlights h ON h.item_id = i.id
+		GROUP BY i.id
+		ORDER BY i.created_at DESC, i.id DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +148,7 @@ func (s *Store) ListItems() ([]Item, error) {
 	for rows.Next() {
 		var it Item
 		var ts int64
-		if err := rows.Scan(&it.ID, &it.URL, &it.Title, &it.Excerpt, &it.SiteName, &ts); err != nil {
+		if err := rows.Scan(&it.ID, &it.URL, &it.Title, &it.Excerpt, &it.SiteName, &ts, &it.HighlightCount); err != nil {
 			return nil, err
 		}
 		it.CreatedAt = time.Unix(ts, 0)
@@ -198,10 +204,12 @@ func (s *Store) Search(q string) ([]Item, error) {
 		return []Item{}, nil
 	}
 	rows, err := s.db.Query(`
-		SELECT i.id, i.url, i.title, i.excerpt, i.site_name, i.created_at
+		SELECT i.id, i.url, i.title, i.excerpt, i.site_name, i.created_at, COUNT(h.id)
 		FROM items_fts f
 		JOIN items i ON i.id = f.rowid
+		LEFT JOIN highlights h ON h.item_id = i.id
 		WHERE items_fts MATCH ?
+		GROUP BY i.id
 		ORDER BY i.created_at DESC, i.id DESC`, match)
 	if err != nil {
 		return nil, fmt.Errorf("search: %w", err)
@@ -212,7 +220,7 @@ func (s *Store) Search(q string) ([]Item, error) {
 	for rows.Next() {
 		var it Item
 		var ts int64
-		if err := rows.Scan(&it.ID, &it.URL, &it.Title, &it.Excerpt, &it.SiteName, &ts); err != nil {
+		if err := rows.Scan(&it.ID, &it.URL, &it.Title, &it.Excerpt, &it.SiteName, &ts, &it.HighlightCount); err != nil {
 			return nil, err
 		}
 		it.CreatedAt = time.Unix(ts, 0)

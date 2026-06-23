@@ -5,6 +5,7 @@ export interface Item {
   excerpt: string;
   siteName: string;
   createdAt: string;
+  highlightCount: number;
   // present only on the single-item (reader) fetch
   body?: string;
   html?: string;
