@@ -79,11 +79,24 @@ don't 404 when served from a subpath. A committed placeholder `index.html` keeps
 the embed directive valid before the first frontend build; `scripts/build.sh`
 stages the real build over it.
 
-**Rendering article HTML (`dangerouslySetInnerHTML`).** Deliberate and noted:
-the content is server-cleaned by readability, but it is still third-party HTML.
-For a single-user self-hosted tool the risk is bounded; before any multi-user or
-public deployment this needs server-side sanitization (e.g. bluemonday) — a
-tracked roadmap item, not an oversight.
+**Rendering article HTML (`dangerouslySetInnerHTML`).** The content is third-party
+HTML, so it is **sanitized server-side with bluemonday before it is ever stored or
+served** (a UGC-policy allow-list), not just cleaned by readability. There is a test
+that falsifies this — it feeds a `<script>`/`onerror` payload through extraction and
+asserts it does not survive. `dangerouslySetInnerHTML` then renders already-sanitized
+markup.
+
+**Frontend design — distinct layout, shared craft system.** Tract intentionally does
+*not* reuse the master-detail "ledger" layout from the sibling apps. It shares the
+design *system* (tokens, type scale, the chartreuse-highlighter signature — the
+highlighter is the product's verb) but takes its own *layout archetype*: the library
+is a spatial **reading queue** (resume-first cards), the reader is an editorial
+**index spread** (centered measure, drop-cap, a first-class highlights panel). The
+reasoning: a portfolio should read as one studio's hand (shared system) without every
+app collapsing into the same skeleton (distinct layout). Reading progress is tracked
+client-side so "Continue reading" reflects where you actually stopped — never a faked
+bar. A deterministic anti-slop linter gates the CSS in CI-spirit (no hover-lift, no
+AI-default gradients, tokenized shadows).
 
 ## API
 
