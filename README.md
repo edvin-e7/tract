@@ -121,21 +121,28 @@ Environment: `TRACT_ADDR` (default `:8080`), `TRACT_DB` (default `tract.db`).
 ## Tests
 
 ```bash
-go test ./...   # store/FTS5 round-trip (incl. falsifying absent-term + delete)
+go test ./... -race   # store/FTS5 round-trip + all 7 HTTP handlers, falsify-first
 go vet ./...
 ```
 
+Coverage is falsify-first throughout — every test carries a load-bearing negative
+(absent search term returns zero rows; delete actually unindexes; fetch failure
+maps to 502 not a swallowed 500). The `internal/api` suite drives the real Go 1.22
+method+path mux end-to-end, so the routing table itself is under test. CI
+(`.github/workflows/ci.yml`) runs `go vet` + race tests and a frontend
+typecheck+build on every push/PR.
+
 ## Roadmap
 
-**Done (this block):** layered Go service · pure-Go SQLite + FTS5 with
-trigger-kept index · readability extraction · all 7 endpoints wired · single-
-binary static serving · React shell (add / list / search / reader) · FTS5
-round-trip test (positive + falsifying negatives) · green build/vet/test.
+**Done:** layered Go service · pure-Go SQLite + FTS5 with trigger-kept index ·
+readability extraction · bluemonday HTML sanitization before store/serve · all 7
+endpoints wired · single-binary static serving · React shell (add / list / search
+/ reader) · FTS5 round-trip + full HTTP-handler suite (positive + falsifying
+negatives, race-clean) · CI (vet + race tests + frontend typecheck/build).
 
 **Next blocks:**
 - **Highlights UI** — capture/list passages in the reader (endpoint already exists).
 - **Tags & filtering** — organize the library beyond search.
-- **HTML sanitization** — bluemonday pass before render; required pre-public.
 - **Design pass** — replace the functional shell with the real visual design
   (typography, reading experience, light/dark) via the design-studio loop.
 - **Feeds (the Feedly leg)** — subscribe to RSS, auto-ingest into the library.
