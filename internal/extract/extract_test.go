@@ -45,3 +45,36 @@ func TestSanitizeStripsExecutableContent(t *testing.T) {
 		}
 	}
 }
+
+// TestHTMLPolicyContract pins the sanitizer's allow/deny contract directly, so a
+// future policy swap can't silently loosen it. It documents exactly what a reader
+// needs to keep (formatting, links, images, code) versus what must never survive
+// (scripts, iframes, inline event handlers, javascript: URLs). Testing the policy
+// value itself (not a network round-trip) keeps it deterministic and offline.
+func TestHTMLPolicyContract(t *testing.T) {
+	const in = `<p>text <strong>bold</strong> <em>em</em></p>` +
+		`<a href="https://example.com/page">safe link</a>` +
+		`<a href="javascript:alert(1)">js link</a>` +
+		`<img src="https://example.com/a.png" alt="pic" onerror="pwn()">` +
+		`<pre><code>fmt.Println("hi")</code></pre>` +
+		`<h2 onclick="pwn()">Heading</h2>` +
+		`<blockquote>quoted</blockquote>` +
+		`<script>window.__pwned=1</script>` +
+		`<iframe src="https://evil.example"></iframe>` +
+		`<object data="x"></object>`
+
+	got := strings.ToLower(htmlPolicy.Sanitize(in))
+
+	// Must keep — the formatting a reader legitimately needs.
+	for _, want := range []string{"<strong>", "<em>", "<a href=", "https://example.com/page", "<img", "<pre>", "<code>", "<blockquote>", "<h2>", "heading"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("sanitizer dropped safe content %q; got: %s", want, got)
+		}
+	}
+	// Must strip — anything executable or embeddable.
+	for _, bad := range []string{"<script", "<iframe", "<object", "onerror", "onclick", "javascript:"} {
+		if strings.Contains(got, bad) {
+			t.Errorf("sanitizer left dangerous content %q; got: %s", bad, got)
+		}
+	}
+}
