@@ -125,7 +125,7 @@ hover-lift, no AI-default gradients, tokenized shadows. UI copy is English by de
 
 ## Run locally
 
-Prereqs: Go ≥ 1.22, Node ≥ 18.
+Prereqs: Go ≥ 1.25 (per `go.mod`), Node ≥ 20 (CI builds on 22).
 
 ```bash
 # one-shot: build frontend + binary, then run on :8080
