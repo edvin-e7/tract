@@ -22,7 +22,7 @@ import (
 var dist embed.FS
 
 func main() {
-	addr := envOr("TRACT_ADDR", ":8080")
+	addr := resolveAddr()
 	dbPath := envOr("TRACT_DB", "tract.db")
 
 	st, err := store.Open(dbPath)
@@ -59,4 +59,17 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// resolveAddr picks the listen address. TRACT_ADDR wins when set; otherwise a
+// bare PORT (the convention PaaS platforms like Fly, Render and Cloud Run inject)
+// is honored so the single binary drops into a host with zero config; else :8080.
+func resolveAddr() string {
+	if v := os.Getenv("TRACT_ADDR"); v != "" {
+		return v
+	}
+	if p := os.Getenv("PORT"); p != "" {
+		return ":" + p
+	}
+	return ":8080"
 }

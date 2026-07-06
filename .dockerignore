@@ -1,0 +1,12 @@
+# Keep the build context lean and reproducible. The image builds the frontend
+# and the binary from source, so local build outputs and dev cruft never ship.
+.git
+bin/
+frontend/node_modules/
+frontend/dist/
+cmd/tract/dist/assets/
+*.db
+*.db-wal
+*.db-shm
+.playwright-mcp/
+*.png

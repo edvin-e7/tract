@@ -1,0 +1,32 @@
+# Fly.io deploy config — the recommended $0 path for a live Tract demo URL.
+# `fly launch` reads this; it will confirm/rename the app and provision the
+# volume. Free-tier friendly: one shared-cpu machine that scales to zero when
+# idle, plus a small persistent volume so the SQLite library survives redeploys.
+#
+# App name must be globally unique on Fly — `fly launch` will prompt to confirm
+# or change this default.
+app = "tract-e7"
+primary_region = "arn" # Stockholm — closest to Edvin
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  TRACT_DB = "/data/tract.db"
+
+# Persistent volume for the SQLite database. Create once with:
+#   fly volumes create tract_data --region arn --size 1
+[mounts]
+  source = "tract_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

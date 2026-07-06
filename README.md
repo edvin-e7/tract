@@ -142,7 +142,30 @@ go run ./cmd/tract
 make frontend-dev
 ```
 
-Environment: `TRACT_ADDR` (default `:8080`), `TRACT_DB` (default `tract.db`).
+Environment: `TRACT_ADDR` (default `:8080`), `TRACT_DB` (default `tract.db`). If
+`TRACT_ADDR` is unset but `PORT` is (the convention PaaS platforms inject), Tract
+binds `:$PORT` — so the same binary drops into a host with zero config.
+
+## Deploy
+
+Tract is one CGO-free static binary with the frontend embedded, so it containers
+to a distroless image with no libc and no shell. The included `Dockerfile` mirrors
+the local build (frontend → embed → `CGO_ENABLED=0` build); it works on any
+Docker host.
+
+**Fly.io (recommended, $0):** the `fly.toml` provisions one scale-to-zero machine
+plus a small volume so the SQLite library survives redeploys.
+
+```bash
+fly launch --no-deploy               # confirm app name + region (defaults: Stockholm)
+fly volumes create tract_data --region arn --size 1
+fly deploy
+# → https://<app>.fly.dev
+```
+
+**Any other host:** point it at the `Dockerfile` and mount a writable volume at
+`/data` (that's where `TRACT_DB` defaults inside the image). Hosts that inject
+`$PORT` (Render, Cloud Run) need no extra config — the server honors it.
 
 ## Tests
 
@@ -167,14 +190,15 @@ with in-body chartreuse marks that survive reload, a highlights index, and delet
 editorial design (library "queue" + reader "index spread", light/dark, reading
 progress) · anti-slop CSS linter in CI · FTS5 round-trip + full HTTP-handler suite
 (positive + falsifying negatives, race-clean) · CI (vet + race tests + CSS lint +
-frontend typecheck/build).
+frontend typecheck/build) · **selectable UI language (English default + Svenska,
+qbar picker, locale-aware dates)** · containerized deploy (distroless static image
++ Fly config).
 
 **Next blocks:**
 - **Tags & filtering** — organize the library beyond search.
-- **Selectable UI language** — English default is wired; add the lightweight i18n
-  layer + language picker (the shared clipboard-manager pattern).
 - **Feeds (the Feedly leg)** — subscribe to RSS, auto-ingest into the library.
-- **Hosting** — deploy the single binary to a live URL.
+- **Hosting** — `Dockerfile` + `fly.toml` are in the repo (see [Deploy](#deploy));
+  the remaining step is running the deploy against a host.
 
 ## License
 
