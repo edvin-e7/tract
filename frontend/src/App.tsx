@@ -4,6 +4,7 @@ import type { Item } from "./types";
 import { Reader } from "./Reader";
 import { useTheme } from "./useTheme";
 import { useProgress } from "./useProgress";
+import { LANGS, useI18n, type Plural, type Translator } from "./i18n";
 
 type Filter = "all" | "highlighted";
 
@@ -23,6 +24,7 @@ export default function App() {
   const addRef = useRef<HTMLInputElement>(null);
   const [theme, toggleTheme] = useTheme();
   const progress = useProgress();
+  const { t, p, locale, lang, setLang } = useI18n();
 
   const refresh = useCallback(async (q: string) => {
     try {
@@ -30,9 +32,9 @@ export default function App() {
       setItems(data);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "load failed");
+      setError(e instanceof Error ? e.message : t("err.load"));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     const t = setTimeout(() => void refresh(query), query ? 220 : 0);
@@ -65,7 +67,7 @@ export default function App() {
       setQuery("");
       await refresh("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "could not save link");
+      setError(err instanceof Error ? err.message : t("err.saveLink"));
     } finally {
       setBusy(false);
     }
@@ -77,7 +79,7 @@ export default function App() {
       if (openId === id) setOpenId(null);
       await refresh(query);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "could not delete");
+      setError(err instanceof Error ? err.message : t("err.delete"));
     }
   }
 
@@ -114,10 +116,10 @@ export default function App() {
           <input
             ref={searchRef}
             type="search"
-            placeholder="Search everything you've saved…"
+            placeholder={t("search.placeholder")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            aria-label="Search library"
+            aria-label={t("search.aria")}
           />
           <span className="kbd">⌘K</span>
         </label>
@@ -125,14 +127,26 @@ export default function App() {
         <div className="chips">
           {(["all", "highlighted"] as Filter[]).map((f) => (
             <button key={f} className={`chip${filter === f ? " is-active" : ""}`} onClick={() => setFilter(f)}>
-              {f === "all" ? "All" : "Highlighted"}
+              {f === "all" ? t("filter.all") : t("filter.highlighted")}
             </button>
           ))}
         </div>
-        <button className="qicon" onClick={toggleTheme} title="Toggle theme" aria-label="Toggle theme">
+        <label className="qlang" title={t("lang.aria")}>
+          <span className="sr-only">{t("lang.aria")}</span>
+          <select
+            value={lang}
+            onChange={(e) => setLang(e.target.value as typeof lang)}
+            aria-label={t("lang.aria")}
+          >
+            {LANGS.map((l) => (
+              <option key={l.code} value={l.code}>{l.label}</option>
+            ))}
+          </select>
+        </label>
+        <button className="qicon" onClick={toggleTheme} title={t("theme.toggle")} aria-label={t("theme.toggle")}>
           {theme === "ink" ? icon.sun : icon.moon}
         </button>
-        <button className="btn btn--accent" onClick={() => setAdding((v) => !v)}>+ Save a link</button>
+        <button className="btn btn--accent" onClick={() => setAdding((v) => !v)}>+ {t("save.link")}</button>
       </header>
 
       <main className="qmain">
@@ -142,13 +156,13 @@ export default function App() {
             <input
               ref={addRef}
               type="url"
-              placeholder="Paste a URL to save and read clean…"
+              placeholder={t("add.placeholder")}
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               onKeyDown={(e) => e.key === "Escape" && setAdding(false)}
-              aria-label="URL to save"
+              aria-label={t("add.aria")}
             />
-            <button className="btn btn--accent" type="submit" disabled={busy}>{busy ? "Saving…" : "Save"}</button>
+            <button className="btn btn--accent" type="submit" disabled={busy}>{busy ? t("add.saving") : t("add.save")}</button>
           </form>
         )}
 
@@ -156,13 +170,13 @@ export default function App() {
 
         {continuing.length > 0 && (
           <section className="qsec">
-            <h2 className="qsec__h">Continue reading <span>— pick up where you left off</span></h2>
+            <h2 className="qsec__h">{t("sec.continue")} <span>— {t("sec.continueSub")}</span></h2>
             <div className="qrail">
               {continuing.map((it) => (
                 <button className="qcont" key={it.id} onClick={() => setOpenId(it.id)}>
                   <span className={`qmono ${tint(it)}`}>{monogram(it)}</span>
                   <span className="qcont__t">{it.title || it.url}</span>
-                  <span className="qcont__meta">{hostOf(it)} · {progress.get(it.id)}% in</span>
+                  <span className="qcont__meta">{hostOf(it)} · {t("progress.in", { n: progress.get(it.id) })}</span>
                   <span className="qpr"><i style={{ width: `${progress.get(it.id)}%` }} /></span>
                 </button>
               ))}
@@ -172,16 +186,16 @@ export default function App() {
 
         <section className="qsec">
           <h2 className="qsec__h">
-            {query.trim() ? "Results" : filter === "highlighted" ? "Highlighted" : "Up next"}
-            <span>— {grid.length} article{grid.length === 1 ? "" : "s"}</span>
+            {query.trim() ? t("sec.results") : filter === "highlighted" ? t("filter.highlighted") : t("sec.upnext")}
+            <span>— {p(grid.length, "count.article")}</span>
           </h2>
           {grid.length === 0 ? (
             <p className="empty">
               {query.trim()
-                ? "Nothing matches that search."
+                ? t("empty.search")
                 : filter === "highlighted"
-                  ? "No highlighted articles yet."
-                  : "Nothing saved yet — paste a link to begin your library."}
+                  ? t("empty.highlighted")
+                  : t("empty.library")}
             </p>
           ) : (
             <div className="qgrid">
@@ -191,13 +205,13 @@ export default function App() {
                   <span className="qcard__t">{it.title || it.url}</span>
                   {it.excerpt && <span className="qcard__x">{it.excerpt}</span>}
                   <span className="qcard__foot">
-                    <span>{hostOf(it)} · {relativeTime(it.createdAt)}</span>
+                    <span>{hostOf(it)} · {relativeTime(it.createdAt, t, p, locale)}</span>
                     {it.highlightCount > 0 && <span className="qpill">{it.highlightCount} ✦</span>}
                     <span
                       className="qdel"
                       role="button"
                       tabIndex={0}
-                      aria-label={`Delete ${it.title || it.url}`}
+                      aria-label={t("delete.aria", { title: it.title || it.url })}
                       onClick={(e) => { e.stopPropagation(); void onDelete(it.id); }}
                       onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); void onDelete(it.id); } }}
                     >✕</span>
@@ -210,8 +224,10 @@ export default function App() {
       </main>
 
       <footer className="statusbar">
-        <div className="hints"><span><b>⌘K</b> search</span><span><b>↵</b> open</span></div>
-        <div><b>{items.length}</b> articles · <b>{totalMarks}</b> highlights</div>
+        <div className="hints"><span><b>⌘K</b> {t("foot.search")}</span><span><b>↵</b> {t("foot.open")}</span></div>
+        <div>
+          <b>{items.length}</b> {p(items.length, "noun.article")} · <b>{totalMarks}</b> {p(totalMarks, "noun.highlight")}
+        </div>
       </footer>
     </div>
   );
@@ -229,19 +245,18 @@ function tint(it: Item): string {
   return ["t-a", "t-b", "t-c", "t-d"][it.id % 4];
 }
 
-function relativeTime(iso: string): string {
+function relativeTime(iso: string, t: Translator, p: Plural, locale: string): string {
   const then = new Date(iso).getTime();
   const mins = Math.round((Date.now() - then) / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins} min ago`;
+  if (mins < 1) return t("time.justnow");
+  if (mins < 60) return t("time.min", { n: mins });
   const hrs = Math.round(mins / 60);
-  if (hrs < 24) return `${hrs} hr${hrs > 1 ? "s" : ""} ago`;
+  if (hrs < 24) return p(hrs, "time.hr");
   const days = Math.round(hrs / 24);
-  if (days < 7) return `${days} day${days > 1 ? "s" : ""} ago`;
-  // Explicit English locale: this is a global English-default product, so dates
-  // must not inherit the host machine's locale (a selectable language is a
-  // separate, tracked follow-on).
-  return new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short" });
+  if (days < 7) return p(days, "time.day");
+  // Older than a week: fall back to a date, formatted in the active language's
+  // locale (English default is en-US, so this matches the prior behavior).
+  return new Date(iso).toLocaleDateString(locale, { day: "numeric", month: "short" });
 }
 
 function hostOf(it: Item): string {

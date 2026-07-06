@@ -3,6 +3,7 @@ import { api } from "./api";
 import type { Item, Highlight } from "./types";
 import { writeProgress } from "./useProgress";
 import { applyHighlights } from "./highlight";
+import { useI18n } from "./i18n";
 
 interface Props {
   id: number;
@@ -21,6 +22,7 @@ interface PillState {
 // verb — select any passage to mark it, and marks are re-rendered from the store
 // on every load. Scroll-% is tracked so the library's "Continue reading" is real.
 export function Reader({ id, onClose, onProgress }: Props) {
+  const { t, p, locale } = useI18n();
   const [item, setItem] = useState<Item | null>(null);
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export function Reader({ id, onClose, onProgress }: Props) {
         setItem(it);
         setHighlights(it.highlights ?? []);
       })
-      .catch((e) => alive && setError(e instanceof Error ? e.message : "load failed"));
+      .catch((e) => alive && setError(e instanceof Error ? e.message : t("err.load")));
     return () => {
       alive = false;
     };
@@ -137,7 +139,7 @@ export function Reader({ id, onClose, onProgress }: Props) {
       setPill(null);
       window.getSelection()?.removeAllRanges();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "could not save highlight");
+      setError(err instanceof Error ? err.message : t("err.saveHl"));
     } finally {
       setSaving(false);
     }
@@ -148,7 +150,7 @@ export function Reader({ id, onClose, onProgress }: Props) {
       await api.deleteHighlight(id, hid);
       setHighlights((hs) => hs.filter((h) => h.id !== hid));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "could not remove highlight");
+      setError(err instanceof Error ? err.message : t("err.removeHl"));
     }
   }
 
@@ -180,14 +182,14 @@ export function Reader({ id, onClose, onProgress }: Props) {
         <i style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
       </div>
       <header className="reader__bar">
-        <button className="btn btn--ghost" onClick={onClose}>← Library</button>
+        <button className="btn btn--ghost" onClick={onClose}>← {t("reader.back")}</button>
         <div className="right">
           {item && (
-            <span className="kbd">{count} highlight{count === 1 ? "" : "s"}</span>
+            <span className="kbd">{p(count, "count.highlight")}</span>
           )}
           {item && (
             <button className="btn btn--ghost" onClick={copyLink}>
-              {copied ? "Copied" : "Copy link"}
+              {copied ? t("reader.copied") : t("reader.copyLink")}
             </button>
           )}
         </div>
@@ -197,7 +199,7 @@ export function Reader({ id, onClose, onProgress }: Props) {
         <p className="feedback" role="alert" style={{ textAlign: "center", marginTop: 40 }}>{error}</p>
       )}
       {!item && !error && (
-        <p className="muted" style={{ textAlign: "center", marginTop: 80 }}>Loading…</p>
+        <p className="muted" style={{ textAlign: "center", marginTop: 80 }}>{t("common.loading")}</p>
       )}
 
       {item && (
@@ -210,21 +212,18 @@ export function Reader({ id, onClose, onProgress }: Props) {
             <div className="prose" ref={proseRef} />
           </article>
 
-          <section className="highlights" aria-label="Highlights">
-            <h3>Highlights <span className="highlights__n">{count}</span></h3>
+          <section className="highlights" aria-label={t("reader.highlights")}>
+            <h3>{t("reader.highlights")} <span className="highlights__n">{count}</span></h3>
             {count === 0 ? (
-              <p className="hl-empty">
-                Select any passage in the article to highlight it — your marks are saved and
-                come back every time you open it.
-              </p>
+              <p className="hl-empty">{t("reader.hlEmpty")}</p>
             ) : (
               <ul className="hl-list">
                 {highlights.map((h) => (
                   <li className="hl-card" key={h.id}>
-                    <button className="hl-card__body" onClick={() => scrollToMark(h.id)} title="Jump to highlight">
+                    <button className="hl-card__body" onClick={() => scrollToMark(h.id)} title={t("reader.jump")}>
                       <p>{h.text}</p>
                       <span className="when">
-                        {new Date(h.createdAt).toLocaleDateString("en-US", {
+                        {new Date(h.createdAt).toLocaleDateString(locale, {
                           day: "numeric",
                           month: "short",
                           year: "numeric",
@@ -233,8 +232,8 @@ export function Reader({ id, onClose, onProgress }: Props) {
                     </button>
                     <button
                       className="hl-card__del"
-                      aria-label="Remove highlight"
-                      title="Remove highlight"
+                      aria-label={t("reader.remove")}
+                      title={t("reader.remove")}
                       onClick={() => removeHighlight(h.id)}
                     >
                       ✕
@@ -259,7 +258,7 @@ export function Reader({ id, onClose, onProgress }: Props) {
           <svg viewBox="0 0 24 24" aria-hidden>
             <path d="M4 20h16M6 16l9-9 3 3-9 9H6z" />
           </svg>
-          {saving ? "Saving…" : "Highlight"}
+          {saving ? t("add.saving") : t("reader.highlight")}
         </button>
       )}
     </div>
