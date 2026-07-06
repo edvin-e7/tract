@@ -38,5 +38,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      # Deterministic anti-slop gate: rejects hover-lift, AI-default gradients,
+      # and un-tokenized shadows before the build even runs.
+      - run: npm run lint:css
       # `npm run build` is `tsc -b && vite build` → typecheck gates the build.
       - run: npm run build

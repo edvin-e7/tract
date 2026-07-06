@@ -1,6 +1,6 @@
 # Tract — convenience targets. Plain make, macOS/Linux portable.
 
-.PHONY: build test vet run frontend-dev clean
+.PHONY: build test vet lint run frontend-dev clean
 
 build: ## build frontend + single binary
 	./scripts/build.sh
@@ -10,6 +10,9 @@ test: ## run Go tests
 
 vet: ## static checks
 	go vet ./...
+
+lint: ## anti-slop CSS lint (deterministic, no deps)
+	node scripts/lint-css.mjs
 
 run: build ## build then run the server (:8080)
 	./bin/tract

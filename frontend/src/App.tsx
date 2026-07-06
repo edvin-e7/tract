@@ -238,7 +238,10 @@ function relativeTime(iso: string): string {
   if (hrs < 24) return `${hrs} hr${hrs > 1 ? "s" : ""} ago`;
   const days = Math.round(hrs / 24);
   if (days < 7) return `${days} day${days > 1 ? "s" : ""} ago`;
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  // Explicit English locale: this is a global English-default product, so dates
+  // must not inherit the host machine's locale (a selectable language is a
+  // separate, tracked follow-on).
+  return new Date(iso).toLocaleDateString("en-US", { day: "numeric", month: "short" });
 }
 
 function hostOf(it: Item): string {

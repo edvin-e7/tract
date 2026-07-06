@@ -86,17 +86,29 @@ that falsifies this — it feeds a `<script>`/`onerror` payload through extracti
 asserts it does not survive. `dangerouslySetInnerHTML` then renders already-sanitized
 markup.
 
+**Highlighting is the product's verb.** In the reader, select any passage and a
+floating **Highlight** pill appears; one click saves it. Saved passages are rendered
+back into the article body as a translucent chartreuse `<mark>` — re-derived from the
+store on every load, so highlights survive reloads and restarts. The wrap runs on the
+DOM's *text nodes* via a `Range` (whitespace-normalized), so a passage that crosses an
+`<a>`/`<em>` boundary is marked correctly and the sanitized markup is never disturbed.
+A side "Highlights" index lists every mark; each row jumps to its place in the text
+(with a brief flash) or removes it. The store keeps a highlight as its text, not DOM
+offsets — the pragmatic choice for a reading tool, and the reason re-render is a pure
+function of `(article, saved passages)`.
+
 **Frontend design — distinct layout, shared craft system.** Tract intentionally does
 *not* reuse the master-detail "ledger" layout from the sibling apps. It shares the
-design *system* (tokens, type scale, the chartreuse-highlighter signature — the
-highlighter is the product's verb) but takes its own *layout archetype*: the library
-is a spatial **reading queue** (resume-first cards), the reader is an editorial
-**index spread** (centered measure, drop-cap, a first-class highlights panel). The
-reasoning: a portfolio should read as one studio's hand (shared system) without every
-app collapsing into the same skeleton (distinct layout). Reading progress is tracked
+design *system* (tokens, type scale, the chartreuse-highlighter signature) but takes
+its own *layout archetype*: the library is a spatial **reading queue** (resume-first
+cards), the reader is an editorial **index spread** (centered measure, drop-cap, a
+live reading-progress hairline, a first-class highlights index). The reasoning: a
+portfolio should read as one studio's hand (shared system) without every app
+collapsing into the same skeleton (distinct layout). Reading progress is tracked
 client-side so "Continue reading" reflects where you actually stopped — never a faked
-bar. A deterministic anti-slop linter gates the CSS in CI-spirit (no hover-lift, no
-AI-default gradients, tokenized shadows).
+bar. A deterministic anti-slop linter (`make lint`, wired into CI) gates the CSS: no
+hover-lift, no AI-default gradients, tokenized shadows. UI copy is English by default
+(this is a global product); a selectable UI language is a tracked follow-on.
 
 ## API
 
@@ -108,6 +120,7 @@ AI-default gradients, tokenized shadows).
 | `DELETE` | `/api/items/{id}` | delete an item (cascades highlights + FTS) |
 | `GET` | `/api/search?q=` | FTS5 search over title + body |
 | `POST` | `/api/items/{id}/highlights` | `{text}` → attach a highlight |
+| `DELETE` | `/api/items/{id}/highlights/{hid}` | remove a highlight (item-scoped) |
 | `GET` | `/api/health` | liveness probe |
 
 ## Run locally
@@ -148,16 +161,18 @@ typecheck+build on every push/PR.
 ## Roadmap
 
 **Done:** layered Go service · pure-Go SQLite + FTS5 with trigger-kept index ·
-readability extraction · bluemonday HTML sanitization before store/serve · all 7
-endpoints wired · single-binary static serving · React shell (add / list / search
-/ reader) · FTS5 round-trip + full HTTP-handler suite (positive + falsifying
-negatives, race-clean) · CI (vet + race tests + frontend typecheck/build).
+readability extraction · bluemonday HTML sanitization before store/serve · all 8
+endpoints wired · single-binary static serving · **select-to-highlight in the reader
+with in-body chartreuse marks that survive reload, a highlights index, and delete** ·
+editorial design (library "queue" + reader "index spread", light/dark, reading
+progress) · anti-slop CSS linter in CI · FTS5 round-trip + full HTTP-handler suite
+(positive + falsifying negatives, race-clean) · CI (vet + race tests + CSS lint +
+frontend typecheck/build).
 
 **Next blocks:**
-- **Highlights UI** — capture/list passages in the reader (endpoint already exists).
 - **Tags & filtering** — organize the library beyond search.
-- **Design pass** — replace the functional shell with the real visual design
-  (typography, reading experience, light/dark) via the design-studio loop.
+- **Selectable UI language** — English default is wired; add the lightweight i18n
+  layer + language picker (the shared clipboard-manager pattern).
 - **Feeds (the Feedly leg)** — subscribe to RSS, auto-ingest into the library.
 - **Hosting** — deploy the single binary to a live URL.
 
