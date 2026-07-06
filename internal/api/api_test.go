@@ -188,6 +188,37 @@ func TestAddHighlight(t *testing.T) {
 	}
 }
 
+// TestDeleteHighlightOverHTTP walks add → delete → verify-gone over HTTP, plus
+// the rejection seams: a bad highlight id is 400, and a missing one is 404 (not
+// a swallowed 204 that pretends it removed something).
+func TestDeleteHighlightOverHTTP(t *testing.T) {
+	mux := newTestServer(t, fakeExtractor{art: sampleArticle})
+	created := decode[store.Item](t, do(t, mux, "POST", "/api/items", map[string]string{"url": "https://example.com/x"}))
+	base := "/api/items/" + itoa(created.ID) + "/highlights"
+
+	h := decode[store.Highlight](t, do(t, mux, "POST", base, map[string]string{"text": "worth keeping"}))
+	if h.ID <= 0 {
+		t.Fatalf("expected positive highlight id, got %d", h.ID)
+	}
+
+	// bad highlight id → 400
+	if rec := do(t, mux, "DELETE", base+"/abc", nil); rec.Code != http.StatusBadRequest {
+		t.Fatalf("bad hid: code = %d, want 400", rec.Code)
+	}
+	// missing highlight id → 404
+	if rec := do(t, mux, "DELETE", base+"/99999", nil); rec.Code != http.StatusNotFound {
+		t.Fatalf("missing hid: code = %d, want 404", rec.Code)
+	}
+	// real delete → 204, and the item now reports zero highlights
+	if rec := do(t, mux, "DELETE", base+"/"+itoa(h.ID), nil); rec.Code != http.StatusNoContent {
+		t.Fatalf("delete: code = %d, want 204", rec.Code)
+	}
+	got := decode[store.Item](t, do(t, mux, "GET", "/api/items/"+itoa(created.ID), nil))
+	if len(got.Highlights) != 0 {
+		t.Fatalf("highlight survived delete: %+v (delete was not real)", got.Highlights)
+	}
+}
+
 // TestSearchOverHTTP proves the FTS5 contract survives the full HTTP round-trip:
 // a present term hits, an absent term returns an empty array (the load-bearing
 // negative — it falsifies "search always echoes rows").

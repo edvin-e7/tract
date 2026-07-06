@@ -39,6 +39,7 @@ func (s *Server) Routes() *http.ServeMux {
 	mux.HandleFunc("GET /api/items/{id}", s.getItem)
 	mux.HandleFunc("DELETE /api/items/{id}", s.deleteItem)
 	mux.HandleFunc("POST /api/items/{id}/highlights", s.addHighlight)
+	mux.HandleFunc("DELETE /api/items/{id}/highlights/{hid}", s.deleteHighlight)
 	mux.HandleFunc("GET /api/search", s.search)
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
@@ -156,6 +157,28 @@ func (s *Server) addHighlight(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusCreated, h)
+}
+
+func (s *Server) deleteHighlight(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	hid, err := strconv.ParseInt(r.PathValue("hid"), 10, 64)
+	if err != nil || hid <= 0 {
+		writeErr(w, http.StatusBadRequest, "invalid highlight id")
+		return
+	}
+	err = s.Store.DeleteHighlight(id, hid)
+	if errors.Is(err, store.ErrNotFound) {
+		writeErr(w, http.StatusNotFound, "highlight not found")
+		return
+	}
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "could not delete highlight")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) search(w http.ResponseWriter, r *http.Request) {

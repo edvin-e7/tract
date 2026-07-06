@@ -148,3 +148,42 @@ func TestHighlightsAndNotFound(t *testing.T) {
 		t.Fatalf("AddHighlight(missing) = %v, want ErrNotFound", err)
 	}
 }
+
+// TestDeleteHighlight proves removal is real and item-scoped: after delete the
+// highlight is gone from the item, a missing id is ErrNotFound, and — the
+// load-bearing negative — deleting with the wrong item id must NOT remove a
+// highlight that belongs to a different item.
+func TestDeleteHighlight(t *testing.T) {
+	s := newTestStore(t)
+
+	a, _ := s.AddItem(Item{URL: "https://x.test/a", Title: "A", Body: "b"})
+	b, _ := s.AddItem(Item{URL: "https://x.test/b", Title: "B", Body: "b"})
+	ha, err := s.AddHighlight(a.ID, "keep A")
+	if err != nil {
+		t.Fatalf("highlight A: %v", err)
+	}
+	hb, err := s.AddHighlight(b.ID, "keep B")
+	if err != nil {
+		t.Fatalf("highlight B: %v", err)
+	}
+
+	// Cross-item mismatch: deleting hb via item A's id must not touch it.
+	if err := s.DeleteHighlight(a.ID, hb.ID); err != ErrNotFound {
+		t.Fatalf("cross-item delete = %v, want ErrNotFound (scoping is broken)", err)
+	}
+	if got, _ := s.GetItem(b.ID); len(got.Highlights) != 1 {
+		t.Fatalf("B lost its highlight to a mismatched delete: %+v", got.Highlights)
+	}
+
+	// Real delete of A's highlight.
+	if err := s.DeleteHighlight(a.ID, ha.ID); err != nil {
+		t.Fatalf("delete: %v", err)
+	}
+	if got, _ := s.GetItem(a.ID); len(got.Highlights) != 0 {
+		t.Fatalf("A still has highlights after delete: %+v", got.Highlights)
+	}
+	// Second delete of the same id is now a clean ErrNotFound.
+	if err := s.DeleteHighlight(a.ID, ha.ID); err != ErrNotFound {
+		t.Fatalf("re-delete = %v, want ErrNotFound", err)
+	}
+}

@@ -44,4 +44,9 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
     }).then((r) => json<Highlight>(r)),
+
+  deleteHighlight: async (id: number, hid: number) => {
+    const res = await fetch(`${BASE}/items/${id}/highlights/${hid}`, { method: "DELETE" });
+    if (!res.ok && res.status !== 204) throw new Error(`delete failed (${res.status})`);
+  },
 };

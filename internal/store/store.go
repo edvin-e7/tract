@@ -245,6 +245,21 @@ func (s *Store) AddHighlight(itemID int64, text string) (Highlight, error) {
 	return Highlight{ID: id, ItemID: itemID, Text: text, CreatedAt: now}, nil
 }
 
+// DeleteHighlight removes a highlight, scoped to its item so a mismatched
+// (item, highlight) pair can never delete a stranger's highlight. Returns
+// ErrNotFound when no row matches that exact pair.
+func (s *Store) DeleteHighlight(itemID, highlightID int64) error {
+	res, err := s.db.Exec(`DELETE FROM highlights WHERE id = ? AND item_id = ?`, highlightID, itemID)
+	if err != nil {
+		return err
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
 func (s *Store) highlightsFor(itemID int64) ([]Highlight, error) {
 	rows, err := s.db.Query(
 		`SELECT id, item_id, text, created_at FROM highlights WHERE item_id = ? ORDER BY created_at ASC, id ASC`, itemID)
