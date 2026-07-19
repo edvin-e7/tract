@@ -36,10 +36,16 @@ func main() {
 		log.Fatalf("embed: %v", err)
 	}
 
+	token := os.Getenv("TRACT_TOKEN")
+	if token == "" {
+		log.Printf("WARNING: TRACT_TOKEN is not set — every route is open (fine on localhost; NEVER expose this instance publicly without a token)")
+	}
+
 	srv := &api.Server{
 		Store:     st,
 		Extractor: extract.New(),
 		Static:    sub,
+		Token:     token,
 	}
 
 	httpSrv := &http.Server{

@@ -14,6 +14,10 @@ primary_region = "arn" # Stockholm — closest to Edvin
 [env]
   TRACT_DB = "/data/tract.db"
 
+# REQUIRED before the first deploy — without it the public URL is world-writable
+# (secrets never go in this file):
+#   fly secrets set TRACT_TOKEN=$(openssl rand -hex 32)
+
 # Persistent volume for the SQLite database. Create once with:
 #   fly volumes create tract_data --region arn --size 1
 [mounts]

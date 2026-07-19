@@ -28,18 +28,23 @@ type Server struct {
 	Extractor Extractor
 	// Static is the embedded frontend dist; nil disables static serving.
 	Static fs.FS
+	// Token, when non-empty, is required (as `Authorization: Bearer <Token>`)
+	// on every mutating route and on the URL-fetching route. Empty keeps all
+	// routes open — local single-user mode. See auth.go.
+	Token string
 }
 
 // Routes builds the ServeMux. API routes first; a catch-all serves the SPA.
+// Mutating routes (and the server-side fetch) sit behind requireToken.
 func (s *Server) Routes() *http.ServeMux {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /api/items", s.addItem)
+	mux.HandleFunc("POST /api/items", s.requireToken(s.addItem))
 	mux.HandleFunc("GET /api/items", s.listItems)
 	mux.HandleFunc("GET /api/items/{id}", s.getItem)
-	mux.HandleFunc("DELETE /api/items/{id}", s.deleteItem)
-	mux.HandleFunc("POST /api/items/{id}/highlights", s.addHighlight)
-	mux.HandleFunc("DELETE /api/items/{id}/highlights/{hid}", s.deleteHighlight)
+	mux.HandleFunc("DELETE /api/items/{id}", s.requireToken(s.deleteItem))
+	mux.HandleFunc("POST /api/items/{id}/highlights", s.requireToken(s.addHighlight))
+	mux.HandleFunc("DELETE /api/items/{id}/highlights/{hid}", s.requireToken(s.deleteHighlight))
 	mux.HandleFunc("GET /api/search", s.search)
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})

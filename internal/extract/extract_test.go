@@ -29,7 +29,9 @@ func TestSanitizeStripsExecutableContent(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	art, err := New().Fetch(context.Background(), srv.URL)
+	// permissiveFetcher, not New(): the test server lives on loopback, which
+	// the production SSRF guard refuses by design (see netguard_test.go).
+	art, err := permissiveFetcher().Fetch(context.Background(), srv.URL)
 	if err != nil {
 		t.Fatalf("fetch: %v", err)
 	}

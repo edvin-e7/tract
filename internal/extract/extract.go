@@ -5,14 +5,20 @@ package extract
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	readability "github.com/go-shiori/go-readability"
 	"github.com/microcosm-cc/bluemonday"
 )
+
+// maxFetchBytes caps how much of a fetched page is read. The README's Fly
+// deploy runs on a 256 MB VM and readability buffers the whole document, so an
+// unbounded (or hostile) response is an out-of-memory lever. 10 MiB is far
+// beyond any real article page.
+const maxFetchBytes = 10 << 20
 
 // htmlPolicy sanitizes readability's output before it is ever stored or served.
 // Article HTML is untrusted (it came from an arbitrary page), so without this a
@@ -37,9 +43,11 @@ type Fetcher struct {
 	Client *http.Client
 }
 
-// New returns a Fetcher with a sane default timeout.
+// New returns a Fetcher with sane timeouts and the SSRF dial guard (see
+// netguard.go): connections to private/loopback/link-local/metadata addresses
+// are refused at dial time, including on redirect hops.
 func New() *Fetcher {
-	return &Fetcher{Client: &http.Client{Timeout: 20 * time.Second}}
+	return &Fetcher{Client: newHTTPClient(addrAllowed)}
 }
 
 // Fetch retrieves rawURL and extracts its readable content. Network and parse
@@ -65,10 +73,20 @@ func (f *Fetcher) Fetch(ctx context.Context, rawURL string) (Article, error) {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return Article{}, fmt.Errorf("fetch: status %d", resp.StatusCode)
 	}
+	if resp.ContentLength > maxFetchBytes {
+		return Article{}, fmt.Errorf("fetch: response is %d bytes, over the %d MiB limit", resp.ContentLength, maxFetchBytes>>20)
+	}
 
-	art, err := readability.FromReader(resp.Body, u)
+	// Read at most one byte over the cap: if the parser drained the reader,
+	// the body exceeded the limit and the article is rejected rather than
+	// silently stored truncated.
+	body := &io.LimitedReader{R: resp.Body, N: maxFetchBytes + 1}
+	art, err := readability.FromReader(body, u)
 	if err != nil {
 		return Article{}, fmt.Errorf("readability: %w", err)
+	}
+	if body.N <= 0 {
+		return Article{}, fmt.Errorf("fetch: response exceeds the %d MiB limit", maxFetchBytes>>20)
 	}
 
 	title := strings.TrimSpace(art.Title)

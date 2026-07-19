@@ -3,17 +3,44 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Tract — read later, read clean</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap"
-      rel="stylesheet"
-    />
-    <script type="module" crossorigin src="./assets/index-DPuogB7y.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-BBT9fW_I.css">
+    <title>Tract — frontend not built yet</title>
+    <!--
+      Committed placeholder. It keeps the //go:embed all:dist directive valid on
+      a fresh clone and is fully self-contained (no asset references, so it
+      renders instead of a blank page). `make run` / scripts/build.sh stages the
+      real Vite build over this file — do not commit that build output.
+    -->
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: #101014;
+        color: #e8e6e1;
+        font: 16px/1.6 Georgia, "Times New Roman", serif;
+      }
+      main { max-width: 34rem; padding: 2rem; }
+      h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: 0.01em; }
+      code {
+        font-family: ui-monospace, Menlo, monospace;
+        font-size: 0.9em;
+        background: #1c1c22;
+        padding: 0.15em 0.4em;
+        border-radius: 4px;
+      }
+      p { color: #b8b5ae; }
+      .accent { color: #d7e022; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <main>
+      <h1>Tract <span class="accent">/</span> frontend not built yet</h1>
+      <p>
+        The server is running and the JSON API is live (try
+        <code>/api/health</code>), but this binary was built without the web
+        UI. Build it with <code>make run</code> — or keep using the API.
+      </p>
+    </main>
   </body>
 </html>

@@ -75,9 +75,17 @@ isolated change behind the `internal/extract` boundary.)
 
 **Frontend embedded via `//go:embed`, served by the same binary.** One artifact
 to deploy. Vite is configured with `base: "./"` so assets resolve relatively and
-don't 404 when served from a subpath. A committed placeholder `index.html` keeps
-the embed directive valid before the first frontend build; `scripts/build.sh`
-stages the real build over it.
+don't 404 when served from a subpath. A committed **self-contained** placeholder
+`index.html` keeps the embed directive valid on a fresh clone (and renders a
+"frontend not built yet" page instead of a blank one, since built assets are
+gitignored); `scripts/build.sh` stages the real build over it — that overwrite
+shows up as a local modification and should not be committed.
+
+**Server-side fetch is SSRF-guarded and size-capped.** `POST /api/items` makes
+the server request an arbitrary caller-supplied URL, so the fetcher's dialer
+refuses non-global addresses (private/loopback/link-local/metadata/CGNAT) at
+connect time — on the first hop, on every redirect hop, and after DNS
+resolution — and reads at most 10 MiB. See [Security](#security).
 
 **Rendering article HTML (`dangerouslySetInnerHTML`).** The content is third-party
 HTML, so it is **sanitized server-side with bluemonday before it is ever stored or
@@ -112,16 +120,19 @@ hover-lift, no AI-default gradients, tokenized shadows. UI copy is English by de
 
 ## API
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| `POST` | `/api/items` | `{url}` → fetch, extract, store; returns the item |
-| `GET` | `/api/items` | list items, newest first |
-| `GET` | `/api/items/{id}` | full item (body + html + highlights) for the reader |
-| `DELETE` | `/api/items/{id}` | delete an item (cascades highlights + FTS) |
-| `GET` | `/api/search?q=` | FTS5 search over title + body |
-| `POST` | `/api/items/{id}/highlights` | `{text}` → attach a highlight |
-| `DELETE` | `/api/items/{id}/highlights/{hid}` | remove a highlight (item-scoped) |
-| `GET` | `/api/health` | liveness probe |
+| Method | Path | Auth* | Purpose |
+|--------|------|-------|---------|
+| `POST` | `/api/items` | 🔒 | `{url}` → fetch, extract, store; returns the item |
+| `GET` | `/api/items` | — | list items, newest first |
+| `GET` | `/api/items/{id}` | — | full item (body + html + highlights) for the reader |
+| `DELETE` | `/api/items/{id}` | 🔒 | delete an item (cascades highlights + FTS) |
+| `GET` | `/api/search?q=` | — | FTS5 search over title + body |
+| `POST` | `/api/items/{id}/highlights` | 🔒 | `{text}` → attach a highlight |
+| `DELETE` | `/api/items/{id}/highlights/{hid}` | 🔒 | remove a highlight (item-scoped) |
+| `GET` | `/api/health` | — | liveness probe |
+
+\* 🔒 = requires `Authorization: Bearer $TRACT_TOKEN` when the token is
+configured; open when it isn't. See [Security](#security).
 
 ## Run locally
 
@@ -142,9 +153,47 @@ go run ./cmd/tract
 make frontend-dev
 ```
 
-Environment: `TRACT_ADDR` (default `:8080`), `TRACT_DB` (default `tract.db`). If
-`TRACT_ADDR` is unset but `PORT` is (the convention PaaS platforms inject), Tract
-binds `:$PORT` — so the same binary drops into a host with zero config.
+Environment: `TRACT_ADDR` (default `:8080`), `TRACT_DB` (default `tract.db`),
+`TRACT_TOKEN` (default unset — see [Security](#security)). If `TRACT_ADDR` is
+unset but `PORT` is (the convention PaaS platforms inject), Tract binds
+`:$PORT` — so the same binary drops into a host with zero config.
+
+## Security
+
+**Tract has no accounts.** Access control is a single bearer token:
+
+- **`TRACT_TOKEN` unset (default):** every route is open. That is the intended
+  zero-config mode for `localhost` — and **only** for localhost. The server
+  logs a loud warning at startup in this mode.
+- **`TRACT_TOKEN` set:** every *mutating* route — `POST /api/items` (which also
+  makes the server fetch a caller-supplied URL), `DELETE /api/items/{id}`, and
+  both highlight routes — requires `Authorization: Bearer <token>`. Read-only
+  `GET`s (list, item, search, health) stay open, so a public URL works as a
+  read-only demo while writes stay yours.
+
+> ⚠️ **A public deploy without `TRACT_TOKEN` is world-writable.** Anyone who
+> finds the URL can delete your whole library and use `POST /api/items` to make
+> your server issue requests on their behalf. If it's reachable from the
+> internet, set the token — no exceptions.
+
+Independent of the token, the article fetcher is hardened (always on, not
+configurable off): it refuses to connect to private, loopback, link-local,
+CGNAT and cloud-metadata addresses — checked at **dial time on every hop**, so
+DNS names that resolve to internal ranges and redirect chains that end on
+`169.254.169.254` are rejected the same as literal private URLs (this also
+means Tract cannot save pages from your own LAN/intranet — by design). Fetched
+pages are capped at 10 MiB so a hostile response can't OOM a small VM.
+
+Note: the bundled web UI does not yet send the token, so on a token-protected
+deploy the UI is effectively read-only — add/delete via `curl` with the header
+(UI token support is a tracked follow-on):
+
+```bash
+curl -X POST https://<app>.fly.dev/api/items \
+  -H "Authorization: Bearer $TRACT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://go.dev/blog/gob"}'
+```
 
 ## Deploy
 
@@ -154,11 +203,13 @@ the local build (frontend → embed → `CGO_ENABLED=0` build); it works on any
 Docker host.
 
 **Fly.io (recommended, $0):** the `fly.toml` provisions one scale-to-zero machine
-plus a small volume so the SQLite library survives redeploys.
+plus a small volume so the SQLite library survives redeploys. **Set `TRACT_TOKEN`
+before the first deploy** (see [Security](#security)):
 
 ```bash
 fly launch --no-deploy               # confirm app name + region (defaults: Stockholm)
 fly volumes create tract_data --region arn --size 1
+fly secrets set TRACT_TOKEN=$(openssl rand -hex 32)   # REQUIRED for a public URL
 fly deploy
 # → https://<app>.fly.dev
 ```
@@ -192,7 +243,9 @@ progress) · anti-slop CSS linter in CI · FTS5 round-trip + full HTTP-handler s
 (positive + falsifying negatives, race-clean) · CI (vet + race tests + CSS lint +
 frontend typecheck/build) · **selectable UI language (English default + Svenska,
 qbar picker, locale-aware dates)** · containerized deploy (distroless static image
-+ Fly config).
++ Fly config) · **hardening: `TRACT_TOKEN` bearer gate on all mutating routes,
+dial-time SSRF guard (redirect- and DNS-safe) + 10 MiB fetch cap, self-contained
+fresh-clone placeholder**.
 
 **Next blocks:**
 - **Tags & filtering** — organize the library beyond search.
