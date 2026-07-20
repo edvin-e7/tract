@@ -84,12 +84,21 @@ const en: Dict = {
   "reader.remove": "Remove highlight",
   "reader.highlight": "Highlight",
   "common.loading": "Loading…",
+  // access token (protected deploys)
+  "token.aria": "Access token",
+  "token.label": "Access token",
+  "token.set": "Access token — set",
+  "token.placeholder": "Paste access token…",
+  "token.hint": "Needed to save or delete on a protected server. Kept only in this browser.",
+  "token.save": "Save",
+  "token.clear": "Clear",
   // error fallbacks (network message, when present, stays as returned)
   "err.load": "load failed",
   "err.saveLink": "could not save link",
   "err.delete": "could not delete",
   "err.saveHl": "could not save highlight",
   "err.removeHl": "could not remove highlight",
+  "err.unauthorized": "This server requires an access token — set it with the key button.",
 };
 
 const sv: Dict = {
@@ -139,11 +148,19 @@ const sv: Dict = {
   "reader.remove": "Ta bort markering",
   "reader.highlight": "Markera",
   "common.loading": "Laddar…",
+  "token.aria": "Åtkomsttoken",
+  "token.label": "Åtkomsttoken",
+  "token.set": "Åtkomsttoken — angiven",
+  "token.placeholder": "Klistra in åtkomsttoken…",
+  "token.hint": "Krävs för att spara eller ta bort på en skyddad server. Sparas bara i den här webbläsaren.",
+  "token.save": "Spara",
+  "token.clear": "Rensa",
   "err.load": "kunde inte ladda",
   "err.saveLink": "kunde inte spara länken",
   "err.delete": "kunde inte ta bort",
   "err.saveHl": "kunde inte spara markeringen",
   "err.removeHl": "kunde inte ta bort markeringen",
+  "err.unauthorized": "Servern kräver en åtkomsttoken — ange den med nyckelknappen.",
 };
 
 const DICTS: Record<Lang, Dict> = { en, sv };

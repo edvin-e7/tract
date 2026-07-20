@@ -190,6 +190,37 @@ body::before {
 /* visually-hidden label kept in the a11y tree */
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
+/* ---- access token (key) — button + anchored popover ---- */
+.tokenwrap { position: relative; flex: none; display: inline-flex; }
+/* chartreuse dot on the key = a token is stored in this browser */
+.qicon.is-set { position: relative; color: var(--ink-2); }
+.qicon.is-set::after {
+  content: ""; position: absolute; top: 7px; right: 7px; width: 6px; height: 6px;
+  border-radius: 999px; background: var(--mark);
+}
+.tokenpop {
+  position: absolute; right: 0; top: calc(100% + 10px); z-index: 30; width: 296px;
+  display: flex; flex-direction: column; gap: 10px; margin: 0; padding: 16px;
+  background: var(--bg-2); border: 1px solid var(--line-2); border-radius: 14px;
+  box-shadow: var(--shadow);
+}
+.tokenpop__label {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.tokenpop input {
+  height: 40px; padding: 0 12px; border-radius: 10px; font-size: 13.5px;
+  background: var(--field); border: 1px solid var(--line); color: var(--ink); outline: none;
+  font-family: var(--mono);
+  transition: border-color .16s, box-shadow .16s;
+}
+.tokenpop input:focus { border-color: var(--mark); box-shadow: 0 0 0 4px var(--mark-soft); }
+.tokenpop input::placeholder { color: var(--ink-4); }
+.tokenpop__hint { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--ink-3); }
+.tokenpop__row { display: flex; justify-content: flex-end; gap: 8px; }
+.tokenpop .btn { padding: 8px 14px; font-size: 12.5px; }
+.tokenpop .btn:disabled { opacity: .45; cursor: default; }
+
 .qmain { width: 100%; max-width: 1240px; margin: 0 auto; padding: 32px 40px 0; flex: 1; }
 .qadd { display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 16px; margin-bottom: 26px; border-radius: 13px; background: var(--field); border: 1px solid var(--line); }
 .qadd:focus-within { border-color: var(--mark); box-shadow: 0 0 0 4px var(--mark-soft); }

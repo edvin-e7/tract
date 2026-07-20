@@ -184,9 +184,13 @@ DNS names that resolve to internal ranges and redirect chains that end on
 means Tract cannot save pages from your own LAN/intranet — by design). Fetched
 pages are capped at 10 MiB so a hostile response can't OOM a small VM.
 
-Note: the bundled web UI does not yet send the token, so on a token-protected
-deploy the UI is effectively read-only — add/delete via `curl` with the header
-(UI token support is a tracked follow-on):
+**Using the web UI against a protected deploy:** click the key button in the
+top bar, paste the token, Save. It is kept in that browser's `localStorage`
+(a chartreuse dot on the key marks it as set; Clear removes it) and sent as
+the `Authorization: Bearer` header on mutating calls only — reads never carry
+it, matching the server contract above. Until a token is set, saves/deletes
+fail with a visible "this server requires an access token" error, and the API
+works directly too:
 
 ```bash
 curl -X POST https://<app>.fly.dev/api/items \
@@ -245,7 +249,8 @@ frontend typecheck/build) · **selectable UI language (English default + Svenska
 qbar picker, locale-aware dates)** · containerized deploy (distroless static image
 + Fly config) · **hardening: `TRACT_TOKEN` bearer gate on all mutating routes,
 dial-time SSRF guard (redirect- and DNS-safe) + 10 MiB fetch cap, self-contained
-fresh-clone placeholder**.
+fresh-clone placeholder** · **web-UI token entry (key popover in both bars,
+localStorage-persisted, `Bearer` on mutating calls only, honest 401 guidance)**.
 
 **Next blocks:**
 - **Tags & filtering** — organize the library beyond search.

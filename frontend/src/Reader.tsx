@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { api } from "./api";
+import { api, failureMessage } from "./api";
 import type { Item, Highlight } from "./types";
 import { writeProgress } from "./useProgress";
 import { applyHighlights } from "./highlight";
+import { TokenAccess } from "./TokenAccess";
 import { useI18n } from "./i18n";
 
 interface Props {
@@ -139,7 +140,7 @@ export function Reader({ id, onClose, onProgress }: Props) {
       setPill(null);
       window.getSelection()?.removeAllRanges();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("err.saveHl"));
+      setError(failureMessage(err, t, "err.saveHl"));
     } finally {
       setSaving(false);
     }
@@ -150,7 +151,7 @@ export function Reader({ id, onClose, onProgress }: Props) {
       await api.deleteHighlight(id, hid);
       setHighlights((hs) => hs.filter((h) => h.id !== hid));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("err.removeHl"));
+      setError(failureMessage(err, t, "err.removeHl"));
     }
   }
 
@@ -192,6 +193,7 @@ export function Reader({ id, onClose, onProgress }: Props) {
               {copied ? t("reader.copied") : t("reader.copyLink")}
             </button>
           )}
+          <TokenAccess />
         </div>
       </header>
 

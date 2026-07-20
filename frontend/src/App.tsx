@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { api } from "./api";
+import { api, failureMessage } from "./api";
 import type { Item } from "./types";
 import { Reader } from "./Reader";
+import { TokenAccess } from "./TokenAccess";
 import { useTheme } from "./useTheme";
 import { useProgress } from "./useProgress";
 import { LANGS, useI18n, type Plural, type Translator } from "./i18n";
@@ -67,7 +68,7 @@ export default function App() {
       setQuery("");
       await refresh("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("err.saveLink"));
+      setError(failureMessage(err, t, "err.saveLink"));
     } finally {
       setBusy(false);
     }
@@ -79,7 +80,7 @@ export default function App() {
       if (openId === id) setOpenId(null);
       await refresh(query);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("err.delete"));
+      setError(failureMessage(err, t, "err.delete"));
     }
   }
 
@@ -143,6 +144,7 @@ export default function App() {
             ))}
           </select>
         </label>
+        <TokenAccess />
         <button className="qicon" onClick={toggleTheme} title={t("theme.toggle")} aria-label={t("theme.toggle")}>
           {theme === "ink" ? icon.sun : icon.moon}
         </button>
