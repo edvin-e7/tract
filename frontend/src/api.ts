@@ -1,9 +1,59 @@
 import type { Item, Highlight } from "./types";
 
-// Relative base: served from the same origin as the Go binary in prod, proxied
-// to :8080 in dev. Every request below is same-origin by construction — the
-// access token must never ride along to any other host.
-const BASE = "/api";
+// ---- server address --------------------------------------------------------
+// On the web the SPA is served by the Go binary itself, so "" (same-origin) is
+// right and nothing changes. Inside a native shell (Capacitor iOS/Android) the
+// bundle is served from the app container, so the API lives on another origin
+// entirely — the user's own tract server. That address is user-configured in
+// the key popover (persisted next to the token), or baked in at build time via
+// VITE_DEFAULT_SERVER for personal builds pre-pointed at e.g.
+// http://<mac>.local:8080.
+
+const SERVER_KEY = "tract-server";
+
+const DEFAULT_SERVER = normalizeServer(import.meta.env.VITE_DEFAULT_SERVER ?? "");
+
+function normalizeServer(u: string): string {
+  return u.trim().replace(/\/+$/, "");
+}
+
+export function getServer(): string {
+  try {
+    return normalizeServer(localStorage.getItem(SERVER_KEY) ?? "");
+  } catch {
+    return ""; // localStorage unavailable — behave as same-origin
+  }
+}
+
+export function setServer(url: string): void {
+  try {
+    const u = normalizeServer(url);
+    if (u) localStorage.setItem(SERVER_KEY, u);
+    else localStorage.removeItem(SERVER_KEY);
+  } catch {
+    /* persistence best-effort */
+  }
+}
+
+/** Origin every API call targets: stored server, else build-time default, else
+ * same-origin (""). The bearer token below rides only on calls built from this
+ * one base, so it is only ever sent to the user's own server. */
+export function serverBase(): string {
+  return getServer() || DEFAULT_SERVER;
+}
+
+/** True when running inside the Capacitor native shell, where same-origin
+ * points at the bundled files rather than a tract server. iOS serves from
+ * capacitor://localhost; Android from https://localhost with the injected
+ * bridge global as the tell. */
+export function isNativeShell(): boolean {
+  if (window.location.protocol === "capacitor:") return true;
+  return window.location.hostname === "localhost" && "Capacitor" in window;
+}
+
+function apiUrl(path: string): string {
+  return `${serverBase()}/api${path}`;
+}
 
 /** Error carrying the HTTP status so the UI can react to 401 specifically. */
 export class ApiError extends Error {
@@ -24,6 +74,10 @@ export function failureMessage(
   t: (key: string) => string,
   fallbackKey: string,
 ): string {
+  // In a native shell with no server configured, every call fails against the
+  // bundled files — whatever the raw error says, the actionable fix is one
+  // thing: set the server address.
+  if (isNativeShell() && !serverBase()) return t("err.noServer");
   if (e instanceof ApiError && e.status === 401) return t("err.unauthorized");
   return e instanceof Error ? e.message : t(fallbackKey);
 }
@@ -32,8 +86,10 @@ export function failureMessage(
 // The server gates every mutating route behind `Authorization: Bearer <token>`
 // when TRACT_TOKEN is set (see internal/api/auth.go). The token lives in
 // localStorage — single-user tool, same trust level as the saved articles —
-// and is attached ONLY to mutating same-origin calls; read-only GETs stay
-// bare so they keep working without a token, matching the server's contract.
+// and is attached ONLY to mutating calls against serverBase() (same-origin on
+// the web, the user's configured server in the native shell); read-only GETs
+// stay bare so they keep working without a token, matching the server's
+// contract.
 
 const TOKEN_KEY = "tract-token";
 
@@ -93,34 +149,34 @@ async function expectNoContent(res: Response): Promise<void> {
 }
 
 export const api = {
-  listItems: () => fetch(`${BASE}/items`).then((r) => json<Item[]>(r)),
+  listItems: () => fetch(apiUrl("/items")).then((r) => json<Item[]>(r)),
 
-  getItem: (id: number) => fetch(`${BASE}/items/${id}`).then((r) => json<Item>(r)),
+  getItem: (id: number) => fetch(apiUrl(`/items/${id}`)).then((r) => json<Item>(r)),
 
   addItem: (url: string) =>
-    fetch(`${BASE}/items`, {
+    fetch(apiUrl("/items"), {
       method: "POST",
       headers: authHeaders(true),
       body: JSON.stringify({ url }),
     }).then((r) => json<Item>(r)),
 
   deleteItem: (id: number) =>
-    fetch(`${BASE}/items/${id}`, { method: "DELETE", headers: authHeaders(false) }).then(
+    fetch(apiUrl(`/items/${id}`), { method: "DELETE", headers: authHeaders(false) }).then(
       expectNoContent,
     ),
 
   search: (q: string) =>
-    fetch(`${BASE}/search?q=${encodeURIComponent(q)}`).then((r) => json<Item[]>(r)),
+    fetch(apiUrl(`/search?q=${encodeURIComponent(q)}`)).then((r) => json<Item[]>(r)),
 
   addHighlight: (id: number, text: string) =>
-    fetch(`${BASE}/items/${id}/highlights`, {
+    fetch(apiUrl(`/items/${id}/highlights`), {
       method: "POST",
       headers: authHeaders(true),
       body: JSON.stringify({ text }),
     }).then((r) => json<Highlight>(r)),
 
   deleteHighlight: (id: number, hid: number) =>
-    fetch(`${BASE}/items/${id}/highlights/${hid}`, {
+    fetch(apiUrl(`/items/${id}/highlights/${hid}`), {
       method: "DELETE",
       headers: authHeaders(false),
     }).then(expectNoContent),

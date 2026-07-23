@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { getToken, setToken } from "./api";
+import { getServer, getToken, setServer, setToken } from "./api";
 import { useI18n } from "./i18n";
 
-// Key button + anchored popover for the TRACT_TOKEN access token. Mounted in
-// both the library qbar and the reader bar, so a 401 can be fixed wherever it
-// happens. The token is persisted in localStorage (see api.ts) and attached as
-// `Authorization: Bearer <token>` on mutating calls only. A dot on the key
-// marks "token stored"; the popover never renders the stored value back into
-// the field — Clear is the way out.
+// Key button + anchored popover for the connection settings: the server
+// address (native shells / remote self-host — empty means same-origin) and the
+// TRACT_TOKEN access token. Mounted in both the library qbar and the reader
+// bar, so a 401 or an unconfigured shell can be fixed wherever it happens.
+// Both persist in localStorage (see api.ts). A dot on the key marks "token
+// stored"; the server address is not a secret and renders back into its field,
+// but the popover never renders the stored token — Clear is the way out.
 export function TokenAccess() {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
+  const [server, setServerValue] = useState(() => getServer());
   const [stored, setStored] = useState(() => getToken() !== "");
   const wrapRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -39,12 +41,18 @@ export function TokenAccess() {
 
   function save(e: React.FormEvent) {
     e.preventDefault();
+    const serverChanged = server.trim().replace(/\/+$/, "") !== getServer();
+    setServer(server);
     const v = value.trim();
-    if (!v) return;
-    setToken(v);
-    setStored(true);
-    setValue("");
+    if (v) {
+      setToken(v);
+      setStored(true);
+      setValue("");
+    }
     setOpen(false);
+    // A server change redirects every API call to a new origin — reload so all
+    // views refetch against it instead of showing the old server's data.
+    if (serverChanged) window.location.reload();
   }
 
   function clear() {
@@ -61,8 +69,8 @@ export function TokenAccess() {
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="dialog"
-        title={stored ? t("token.set") : t("token.aria")}
-        aria-label={stored ? t("token.set") : t("token.aria")}
+        title={stored ? t("token.set") : t("conn.aria")}
+        aria-label={stored ? t("token.set") : t("conn.aria")}
       >
         <svg viewBox="0 0 24 24" aria-hidden>
           <circle cx="8" cy="14" r="4" />
@@ -71,13 +79,25 @@ export function TokenAccess() {
       </button>
 
       {open && (
-        <form className="tokenpop" role="dialog" aria-label={t("token.aria")} onSubmit={save}>
+        <form className="tokenpop" role="dialog" aria-label={t("conn.aria")} onSubmit={save}>
+          <label className="tokenpop__label" htmlFor="tract-server-input">
+            {t("server.label")}
+          </label>
+          <input
+            id="tract-server-input"
+            ref={inputRef}
+            type="url"
+            autoComplete="off"
+            placeholder={t("server.placeholder")}
+            value={server}
+            onChange={(e) => setServerValue(e.target.value)}
+          />
+          <p className="tokenpop__hint">{t("server.hint")}</p>
           <label className="tokenpop__label" htmlFor="tract-token-input">
             {t("token.label")}
           </label>
           <input
             id="tract-token-input"
-            ref={inputRef}
             type="password"
             autoComplete="off"
             placeholder={stored ? "••••••••••••" : t("token.placeholder")}
@@ -91,7 +111,7 @@ export function TokenAccess() {
                 {t("token.clear")}
               </button>
             )}
-            <button type="submit" className="btn btn--accent" disabled={!value.trim()}>
+            <button type="submit" className="btn btn--accent">
               {t("token.save")}
             </button>
           </div>

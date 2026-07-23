@@ -33,7 +33,7 @@ export default function App() {
       setItems(data);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("err.load"));
+      setError(failureMessage(e, t, "err.load"));
     }
   }, [t]);
 

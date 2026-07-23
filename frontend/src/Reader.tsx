@@ -42,7 +42,7 @@ export function Reader({ id, onClose, onProgress }: Props) {
         setItem(it);
         setHighlights(it.highlights ?? []);
       })
-      .catch((e) => alive && setError(e instanceof Error ? e.message : t("err.load")));
+      .catch((e) => alive && setError(failureMessage(e, t, "err.load")));
     return () => {
       alive = false;
     };
