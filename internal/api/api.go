@@ -32,6 +32,9 @@ type Server struct {
 	// on every mutating route and on the URL-fetching route. Empty keeps all
 	// routes open — local single-user mode. See auth.go.
 	Token string
+	// ExtraOrigins are CORS origins allowed on top of the built-in native-shell
+	// origins (TRACT_ALLOWED_ORIGINS, comma-separated). See cors.go.
+	ExtraOrigins []string
 }
 
 // Routes builds the ServeMux. API routes first; a catch-all serves the SPA.

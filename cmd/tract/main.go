@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/edvin-e7/tract/internal/api"
@@ -42,15 +43,18 @@ func main() {
 	}
 
 	srv := &api.Server{
-		Store:     st,
-		Extractor: extract.New(),
-		Static:    sub,
-		Token:     token,
+		Store:        st,
+		Extractor:    extract.New(),
+		Static:       sub,
+		Token:        token,
+		ExtraOrigins: splitCommaEnv("TRACT_ALLOWED_ORIGINS"),
 	}
 
 	httpSrv := &http.Server{
-		Addr:              addr,
-		Handler:           srv.Routes(),
+		Addr: addr,
+		// Handler = Routes wrapped in the native-shell CORS layer (see
+		// internal/api/cors.go).
+		Handler:           srv.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -65,6 +69,18 @@ func envOr(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// splitCommaEnv parses a comma-separated env var into its non-empty entries;
+// unset or empty yields nil.
+func splitCommaEnv(key string) []string {
+	var out []string
+	for _, v := range strings.Split(os.Getenv(key), ",") {
+		if v = strings.TrimSpace(v); v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 // resolveAddr picks the listen address. TRACT_ADDR wins when set; otherwise a
