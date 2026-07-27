@@ -122,10 +122,12 @@ export function Reader({ id, onClose, onProgress }: Props) {
       setPill(null);
     }
     document.addEventListener("mouseup", onUp);
+    document.addEventListener("touchend", onUp);
     document.addEventListener("keyup", onUp);
     window.addEventListener("scroll", onScrollHide, { passive: true });
     return () => {
       document.removeEventListener("mouseup", onUp);
+      document.removeEventListener("touchend", onUp);
       document.removeEventListener("keyup", onUp);
       window.removeEventListener("scroll", onScrollHide);
     };

@@ -2,7 +2,17 @@
 <html lang="en" data-theme="ink">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover is what lets the CSS reach the notch/home-indicator via
+         env(safe-area-inset-*). Pinch-zoom stays ENABLED on purpose: the usual reason
+         to set user-scalable=no is iOS auto-zooming when a <16px input takes focus, and
+         index.css already fixes that at the source (`input, select, button { font-size:
+         16px }` under max-width: 768px). Disabling zoom on a *reading* app to work around
+         a problem that is already solved would trade WCAG 1.4.4 for nothing. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#14130f" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f4f0e7" media="(prefers-color-scheme: light)" />
     <title>Tract — read later, read clean</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

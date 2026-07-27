@@ -21,6 +21,12 @@
   --mark-soft: color-mix(in oklab, #d4ff36, transparent 78%);
   --coral:     #ff6a4d;
   --shadow:    0 22px 50px -30px rgba(8, 6, 2, .9);
+  /* Mobile elevation. Separate from --shadow because a floating action button and
+     a bottom sheet need different spreads, and both must follow the theme — a
+     hard rgba(0,0,0,…) reads as dirt on the paper theme's cream background. */
+  --shadow-fab:   0 8px 24px rgba(8, 6, 2, .45);
+  --shadow-sheet: 0 16px 40px rgba(8, 6, 2, .6);
+  --scrim:        rgba(8, 6, 2, .65);
 }
 
 [data-theme="paper"] {
@@ -39,6 +45,9 @@
   --mark-soft: color-mix(in oklab, #8aa80c, transparent 80%);
   --coral:     #bf4527;
   --shadow:    0 22px 50px -34px rgba(60, 50, 25, .42);
+  --shadow-fab:   0 8px 24px rgba(60, 50, 25, .28);
+  --shadow-sheet: 0 16px 40px rgba(60, 50, 25, .34);
+  --scrim:        rgba(60, 50, 25, .42);
 }
 
 :root {
@@ -50,9 +59,15 @@
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 * { box-sizing: border-box; }
+
+html, body {
+  overscroll-behavior-y: bounce;
+}
 
 body {
   margin: 0;
@@ -62,7 +77,7 @@ body {
   line-height: 1.55;
 }
 
-button, input { font-family: inherit; color: inherit; }
+button, input, select { font-family: inherit; color: inherit; }
 ::selection { background: var(--mark); color: var(--mark-ink); }
 
 :focus-visible {
@@ -87,9 +102,10 @@ body::before {
    ============================================================ */
 .btn {
   font-family: var(--sans); font-weight: 700; font-size: 13.5px; letter-spacing: -.01em;
-  display: inline-flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px; cursor: pointer; white-space: nowrap;
   padding: 11px 16px; border-radius: 11px; border: 1px solid var(--line-2); background: transparent;
   color: var(--ink); transition: border-color .16s, background .16s, box-shadow .16s;
+  min-height: 40px; touch-action: manipulation;
 }
 .btn:hover { border-color: var(--ink-3); background: var(--surface); }
 .btn:active { transform: scale(.97); }
@@ -122,11 +138,12 @@ body::before {
 }
 .search input::placeholder { color: var(--ink-4); }
 
-.chips { display: flex; gap: 7px; flex: none; }
+.chips { display: flex; gap: 7px; flex: none; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .chip {
   font-family: var(--sans); font-weight: 600; font-size: 12.5px; cursor: pointer;
   padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line-2);
-  background: transparent; color: var(--ink-3); transition: all .15s;
+  background: transparent; color: var(--ink-3); transition: all .15s; white-space: nowrap;
+  min-height: 36px; display: inline-flex; align-items: center;
 }
 .chip:hover { color: var(--ink); border-color: var(--ink-3); }
 .chip:active { transform: scale(.96); }
@@ -145,7 +162,8 @@ body::before {
 .statusbar {
   position: sticky; bottom: 0; z-index: 2; margin-top: 40px;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 56px; border-top: 1px solid var(--line);
+  padding: 12px max(24px, env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px));
+  border-top: 1px solid var(--line);
   background: color-mix(in oklab, var(--bg), transparent 8%);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
   font-family: var(--mono); font-size: 11px; color: var(--ink-4); letter-spacing: .04em;
@@ -158,15 +176,26 @@ body::before {
    ============================================================ */
 .q { position: relative; z-index: 1; min-height: 100vh; display: flex; flex-direction: column; }
 .qbar {
-  display: flex; align-items: center; gap: 16px; padding: 16px 40px;
+  display: flex; flex-direction: column; gap: 12px;
+  padding: max(14px, calc(10px + env(safe-area-inset-top, 0px))) max(24px, env(safe-area-inset-right, 0px)) 14px max(24px, env(safe-area-inset-left, 0px));
   border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 4;
   background: color-mix(in oklab, var(--bg), transparent 6%);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
+.qbar__top {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%;
+}
+.qbar__actions {
+  display: flex; align-items: center; gap: 10px;
+}
+.qbar__searchrow {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+}
+
 .qbrand { font-family: var(--serif); font-weight: 600; font-size: 21px; letter-spacing: -.01em; display: flex; align-items: center; gap: 10px; }
 .qlogo { width: 30px; height: 30px; border-radius: 9px; background: var(--mark); color: var(--mark-ink); display: grid; place-items: center; font-family: var(--serif); font-weight: 600; font-size: 18px; }
 .qsearch {
-  flex: 1; max-width: 440px; display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 14px;
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 14px;
   border-radius: 12px; background: var(--field); border: 1px solid var(--line);
   transition: border-color .16s, box-shadow .16s;
 }
@@ -175,14 +204,14 @@ body::before {
 .qsearch input { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: var(--ink); font-size: 14px; }
 .qsearch input::placeholder { color: var(--ink-4); }
 .qspacer { flex: 1; }
-.qicon { width: 38px; height: 38px; border-radius: 10px; border: 1px solid var(--line-2); background: transparent; color: var(--ink-3); cursor: pointer; display: grid; place-items: center; transition: all .16s; }
+.qicon { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line-2); background: transparent; color: var(--ink-3); cursor: pointer; display: grid; place-items: center; transition: all .16s; touch-action: manipulation; }
 .qicon:hover { color: var(--ink); background: var(--surface); }
 .qicon:active { transform: scale(.94); }
 .qicon svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.7; }
 
 /* language picker — same chrome vocabulary as the theme icon, native select */
 .qlang { flex: none; display: inline-flex; }
-.qlang select { height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line-2); background: transparent; color: var(--ink-3); font: inherit; font-size: 13px; cursor: pointer; transition: all .16s; }
+.qlang select { height: 40px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--line-2); background: transparent; color: var(--ink-3); font: inherit; font-size: 13px; cursor: pointer; transition: all .16s; }
 .qlang select:hover { color: var(--ink); background: var(--surface); }
 .qlang select:focus-visible { outline: none; border-color: var(--mark); box-shadow: 0 0 0 4px var(--mark-soft); }
 .qlang option { color: var(--ink); background: var(--bg); }
@@ -221,12 +250,16 @@ body::before {
 .tokenpop .btn { padding: 8px 14px; font-size: 12.5px; }
 .tokenpop .btn:disabled { opacity: .45; cursor: default; }
 
-.qmain { width: 100%; max-width: 1240px; margin: 0 auto; padding: 32px 40px 0; flex: 1; }
+.qmain { width: 100%; max-width: 1240px; margin: 0 auto; padding: 24px max(24px, env(safe-area-inset-right, 0px)) calc(60px + env(safe-area-inset-bottom, 0px)) max(24px, env(safe-area-inset-left, 0px)); flex: 1; }
 .qadd { display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 16px; margin-bottom: 26px; border-radius: 13px; background: var(--field); border: 1px solid var(--line); }
 .qadd:focus-within { border-color: var(--mark); box-shadow: 0 0 0 4px var(--mark-soft); }
 .qadd svg { width: 17px; height: 17px; flex: none; fill: none; stroke: var(--ink-3); stroke-width: 1.8; }
 .qadd input { flex: 1; background: transparent; border: none; outline: none; color: var(--ink); font-size: 14.5px; }
 .qadd input::placeholder { color: var(--ink-4); }
+.qadd-close { display: none; }
+.qadd-overlay { display: none; }
+
+.mob-fab { display: none; }
 
 .qsec { margin-bottom: 40px; }
 .qsec__h { font-family: var(--mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-3); margin: 0 0 18px; }
@@ -243,9 +276,10 @@ body::before {
   text-align: left; cursor: pointer; background: var(--bg-2); border: 1px solid var(--line);
   border-radius: 16px; padding: 20px; display: flex; flex-direction: column; min-height: 168px;
   transition: border-color .16s, background .16s;
+  touch-action: manipulation;
 }
 .qcont:hover { border-color: var(--line-2); background: var(--surface); }
-.qcont:active { transform: scale(.99); }
+.qcont:active { transform: scale(.98); }
 .qcont .qmono { margin-bottom: 16px; }
 .qcont__t { font-family: var(--serif); font-weight: 500; font-size: 19px; line-height: 1.18; letter-spacing: -.01em; color: var(--ink); margin-bottom: auto; }
 .qcont__meta { font-family: var(--mono); font-size: 10.5px; color: var(--ink-4); margin: 14px 0 8px; }
@@ -257,18 +291,19 @@ body::before {
   text-align: left; cursor: pointer; background: var(--bg-2); border: 1px solid var(--line);
   border-radius: 14px; padding: 17px; display: flex; flex-direction: column; min-height: 196px;
   transition: border-color .16s, background .16s;
+  touch-action: manipulation;
 }
 .qcard:hover { border-color: var(--line-2); background: var(--surface); }
 .qcard:hover .qdel { opacity: 1; }
-.qcard:active { transform: scale(.99); }
+.qcard:active { transform: scale(.98); }
 .qcard .qmono { width: 38px; height: 38px; border-radius: 10px; font-size: 19px; margin-bottom: 14px; }
 .qcard__t { font-family: var(--serif); font-weight: 500; font-size: 16.5px; line-height: 1.22; letter-spacing: -.01em; color: var(--ink); margin-bottom: 8px; }
 .qcard__x { font-size: 12.5px; color: var(--ink-3); line-height: 1.45; margin-bottom: auto; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .qcard__foot { display: flex; align-items: center; gap: 9px; margin-top: 14px; font-family: var(--mono); font-size: 10px; color: var(--ink-4); }
 .qcard__foot > span:first-child { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qpill { color: var(--mark); border: 1px solid var(--mark-soft); border-radius: 999px; padding: 2px 8px; flex: none; }
-.qdel { color: var(--ink-4); opacity: 0; transition: opacity .15s, color .15s; flex: none; padding: 0 2px; }
-.qdel:hover { color: var(--coral); }
+.qdel { color: var(--ink-4); opacity: 0; transition: opacity .15s, color .15s; flex: none; padding: 4px 6px; border-radius: 6px; }
+.qdel:hover { color: var(--coral); background: rgba(255, 106, 77, 0.12); }
 
 /* ============================================================
    READER — "The Index" editorial spread
@@ -276,44 +311,43 @@ body::before {
 .reader { position: relative; z-index: 1; min-height: 100vh; }
 .reader__bar {
   position: sticky; top: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between;
-  padding: 14px 28px; border-bottom: 1px solid var(--line);
+  padding: max(12px, calc(10px + env(safe-area-inset-top, 0px))) max(20px, env(safe-area-inset-right, 0px)) 12px max(20px, env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--line);
   background: color-mix(in oklab, var(--bg), transparent 6%);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
 /* reading-progress hairline — sits on the bottom edge of the sticky bar */
-.reader__progress { position: sticky; top: 57px; z-index: 3; height: 2px; background: transparent; }
+.reader__progress { position: sticky; top: max(57px, calc(45px + env(safe-area-inset-top, 0px))); z-index: 3; height: 2.5px; background: transparent; }
 .reader__progress i { display: block; height: 100%; background: var(--mark); transition: width .12s linear; }
 .reader__bar .right { display: flex; gap: 10px; align-items: center; }
-.article { max-width: var(--content); margin: 0 auto; padding: 56px 28px 120px; }
+.article { max-width: var(--content); margin: 0 auto; padding: 40px max(20px, env(safe-area-inset-right, 0px)) 100px max(20px, env(safe-area-inset-left, 0px)); }
 .article__eyebrow {
   font-family: var(--mono); font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
   color: var(--mark); text-align: center; margin: 0 0 22px;
 }
 .article h1 {
-  font-family: var(--serif); font-weight: 600; font-size: 46px; line-height: 1.06;
+  font-family: var(--serif); font-weight: 600; font-size: clamp(26px, 6vw, 46px); line-height: 1.1;
   letter-spacing: -.02em; text-align: center; margin: 0 auto; max-width: 18ch;
 }
 .article__deck {
-  font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 19px;
+  font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 18px;
   line-height: 1.5; color: var(--ink-2); text-align: center; max-width: 46ch;
-  margin: 20px auto 0;
+  margin: 18px auto 0;
 }
-.article__rule { width: 56px; height: 3px; background: var(--mark); border: none; margin: 34px auto 38px; }
+.article__rule { width: 56px; height: 3px; background: var(--mark); border: none; margin: 28px auto 32px; }
 
 .prose { font-family: var(--serif); font-size: 18.5px; line-height: 1.72; color: var(--ink); }
 .prose > p { margin: 0 0 1.35em; }
 .prose > p:first-of-type::first-letter {
-  font-weight: 600; font-size: 3.5em; line-height: .8; float: left;
+  font-weight: 600; font-size: 3.2em; line-height: .8; float: left;
   padding: 6px 10px 0 0; color: var(--mark);
 }
 .prose h2 {
-  font-family: var(--serif); font-weight: 600; font-size: 27px; letter-spacing: -.01em;
-  margin: 1.8em 0 .6em;
+  font-family: var(--serif); font-weight: 600; font-size: 24px; letter-spacing: -.01em;
+  margin: 1.6em 0 .6em;
 }
 .prose a { color: var(--ink); text-decoration: underline; text-decoration-color: var(--coral); text-underline-offset: 3px; text-decoration-thickness: 2px; }
 .prose mark { background: var(--mark); color: var(--mark-ink); padding: 1px 3px; border-radius: 2px; }
-/* saved highlights: the chartreuse highlighter, laid down as a translucent wash
-   so the serif prose still reads through it. Clickable from the panel. */
 .prose mark.hl {
   background: var(--mark-soft); color: inherit; padding: 2px 1px; border-radius: 3px;
   box-shadow: inset 0 -0.5em 0 var(--mark-soft); cursor: default;
@@ -324,15 +358,15 @@ body::before {
   30%      { background: var(--mark); color: var(--mark-ink); }
 }
 .prose blockquote {
-  margin: 1.6em 0; padding: 4px 0 4px 22px; border-left: 3px solid var(--mark);
-  font-style: italic; color: var(--ink-2); font-size: 21px; line-height: 1.45;
+  margin: 1.6em 0; padding: 4px 0 4px 18px; border-left: 3px solid var(--mark);
+  font-style: italic; color: var(--ink-2); font-size: 19px; line-height: 1.45;
 }
 .prose img { max-width: 100%; height: auto; border-radius: 8px; }
 .prose pre { background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 16px; overflow: auto; font-family: var(--mono); font-size: 13.5px; line-height: 1.5; }
 .prose code { font-family: var(--mono); font-size: .85em; }
 
 /* ---- highlights panel (reader) ---- */
-.highlights { max-width: var(--content); margin: 0 auto; padding: 0 28px 100px; }
+.highlights { max-width: var(--content); margin: 0 auto; padding: 0 max(20px, env(safe-area-inset-right, 0px)) calc(80px + env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px)); }
 .highlights h3 {
   font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
   color: var(--ink-3); border-top: 1px solid var(--line); padding-top: 22px; margin: 0 0 18px;
@@ -351,28 +385,28 @@ body::before {
 .hl-card:hover { background: var(--surface); }
 .hl-card__body {
   flex: 1; min-width: 0; text-align: left; cursor: pointer; background: transparent;
-  border: none; padding: 14px 8px 14px 18px; color: inherit;
+  border: none; padding: 14px 8px 14px 18px; color: inherit; touch-action: manipulation;
 }
 .hl-card__body p { font-family: var(--serif); font-size: 16px; line-height: 1.5; margin: 0; color: var(--ink); }
 .hl-card__body .when { display: block; font-family: var(--mono); font-size: 10px; color: var(--ink-4); margin-top: 8px; }
 .hl-card__del {
-  flex: none; width: 40px; background: transparent; border: none; cursor: pointer;
-  color: var(--ink-4); font-size: 12px; transition: color .15s, background .15s;
+  flex: none; width: 44px; min-height: 44px; background: transparent; border: none; cursor: pointer;
+  color: var(--ink-4); font-size: 14px; transition: color .15s, background .15s; touch-action: manipulation;
 }
 .hl-card__del:hover { color: var(--coral); background: color-mix(in oklab, var(--coral), transparent 90%); }
 .hl-empty { font-family: var(--serif); font-style: italic; color: var(--ink-3); font-size: 15px; line-height: 1.6; max-width: 52ch; }
 
 /* ---- floating "Highlight" pill (appears on text selection) ---- */
 .hl-pill {
-  position: fixed; z-index: 20; transform: translate(-50%, calc(-100% - 10px));
+  position: fixed; z-index: 50; transform: translate(-50%, calc(-100% - 12px));
   display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
-  font-family: var(--sans); font-weight: 700; font-size: 12.5px; letter-spacing: -.01em;
-  padding: 9px 13px; border-radius: 10px; border: none; cursor: pointer;
+  font-family: var(--sans); font-weight: 700; font-size: 13px; letter-spacing: -.01em;
+  padding: 10px 16px; border-radius: 12px; border: none; cursor: pointer;
   background: var(--mark); color: var(--mark-ink); box-shadow: var(--shadow);
-  animation: pill-in .12s ease;
+  animation: pill-in .12s ease; touch-action: manipulation; min-height: 40px;
 }
 .hl-pill:disabled { opacity: .7; cursor: default; }
-.hl-pill svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.hl-pill svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .hl-pill::after {
   content: ""; position: absolute; left: 50%; bottom: -5px; width: 10px; height: 10px;
   background: var(--mark); transform: translateX(-50%) rotate(45deg); border-radius: 2px;
@@ -381,11 +415,152 @@ body::before {
 
 .muted { color: var(--ink-3); font-family: var(--serif); font-style: italic; }
 
-@media (max-width: 720px) {
-  .page, .statusbar { padding-left: 22px; padding-right: 22px; }
-  .toolbar { flex-direction: column; align-items: stretch; }
-  .masthead h1 { font-size: 40px; }
-  .article h1 { font-size: 34px; }
-  .row { grid-template-columns: 28px 1fr; }
-  .row__aside { display: none; }
+/* ============================================================
+   RESPONSIVE & MOBILE PHONE OPTIMIZATIONS
+   ============================================================ */
+@media (hover: none) {
+  .qdel { opacity: 0.75; }
+}
+
+@media (max-width: 768px) {
+  /* Prevent automatic iOS WebView zoom on input focus */
+  input, select, button { font-size: 16px !important; }
+  .kbd { display: none; }
+  .btn--desktop-add { display: none; }
+
+  .qmain {
+    padding-top: 16px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .qbar {
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    gap: 10px;
+  }
+
+  /* At 375px the two filter chips are `flex: none` and the search field is
+     `flex: 1; min-width: 0`, so the field absorbed the whole shortfall and its
+     placeholder rendered as "Search eve" — the primary action reading as broken.
+     Wrap instead: search takes the full width, chips drop to their own
+     horizontally-scrollable row underneath (they already have overflow-x: auto). */
+  .qbar__searchrow {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .qbar__searchrow .qsearch {
+    flex: 1 0 100%;
+  }
+
+  /* Continue reading horizontal swipe rail on phone screen */
+  .qrail {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-padding-left: max(16px, env(safe-area-inset-left, 0px));
+    gap: 12px;
+    margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+    margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-bottom: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .qcont {
+    flex: 0 0 280px;
+    max-width: 82vw;
+    scroll-snap-align: start;
+    min-height: 154px;
+    padding: 16px;
+  }
+
+  /* Library cards stack on phone */
+  .qgrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .qcard {
+    min-height: auto;
+    padding: 16px;
+  }
+  .qcard__t {
+    font-size: 17px;
+  }
+
+  /* Floating Action Button for saving URLs on phone */
+  .mob-fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    right: max(20px, env(safe-area-inset-right, 0px));
+    width: 58px;
+    height: 58px;
+    border-radius: 999px;
+    background: var(--mark);
+    color: var(--mark-ink);
+    border: none;
+    box-shadow: var(--shadow-fab);
+    z-index: 40;
+    cursor: pointer;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    transition: transform 0.15s;
+    touch-action: manipulation;
+  }
+  .mob-fab:active {
+    transform: scale(0.92);
+  }
+
+  /* Slide-up modal card for adding links on mobile */
+  .qadd-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: var(--scrim);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 49;
+  }
+  .qadd {
+    position: fixed;
+    left: max(12px, env(safe-area-inset-left, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+    top: auto;
+    z-index: 50;
+    box-shadow: var(--shadow-sheet);
+    background: var(--bg-2);
+    border: 1px solid var(--line-2);
+    margin: 0;
+    height: 58px;
+    padding: 0 10px 0 14px;
+    border-radius: 16px;
+  }
+  .qadd-close {
+    display: inline-flex;
+    padding: 8px 10px;
+    color: var(--ink-3);
+  }
+
+  .statusbar .hints {
+    display: none;
+  }
+  .statusbar {
+    justify-content: center;
+    padding-top: 10px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  }
+
+  .tokenpop {
+    position: fixed;
+    top: calc(50px + env(safe-area-inset-top, 0px));
+    left: max(16px, env(safe-area-inset-left, 0px));
+    right: max(16px, env(safe-area-inset-right, 0px));
+    width: auto;
+  }
 }

@@ -7,7 +7,10 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "lint:css": "node ../scripts/lint-css.mjs"
+    "lint:css": "node ../scripts/lint-css.mjs",
+    "cap:sync": "cap sync ios",
+    "cap:open": "cap open ios",
+    "ios": "npm run build && npx cap sync ios && npx cap open ios"
   },
   "dependencies": {
     "@capacitor/core": "^8.4.2",

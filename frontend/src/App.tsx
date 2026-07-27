@@ -111,61 +111,71 @@ export default function App() {
   return (
     <div className="q">
       <header className="qbar">
-        <div className="qbrand"><span className="qlogo" aria-hidden>t</span> Tract</div>
-        <label className="qsearch">
-          {icon.search}
-          <input
-            ref={searchRef}
-            type="search"
-            placeholder={t("search.placeholder")}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label={t("search.aria")}
-          />
-          <span className="kbd">⌘K</span>
-        </label>
-        <div className="qspacer" />
-        <div className="chips">
-          {(["all", "highlighted"] as Filter[]).map((f) => (
-            <button key={f} className={`chip${filter === f ? " is-active" : ""}`} onClick={() => setFilter(f)}>
-              {f === "all" ? t("filter.all") : t("filter.highlighted")}
+        <div className="qbar__top">
+          <div className="qbrand"><span className="qlogo" aria-hidden>t</span> Tract</div>
+          <div className="qbar__actions">
+            <TokenAccess />
+            <button className="qicon" onClick={toggleTheme} title={t("theme.toggle")} aria-label={t("theme.toggle")}>
+              {theme === "ink" ? icon.sun : icon.moon}
             </button>
-          ))}
+            <label className="qlang" title={t("lang.aria")}>
+              <span className="sr-only">{t("lang.aria")}</span>
+              <select
+                value={lang}
+                onChange={(e) => setLang(e.target.value as typeof lang)}
+                aria-label={t("lang.aria")}
+              >
+                {LANGS.map((l) => (
+                  <option key={l.code} value={l.code}>{l.label}</option>
+                ))}
+              </select>
+            </label>
+            <button className="btn btn--accent btn--desktop-add" onClick={() => setAdding((v) => !v)}>+ {t("save.link")}</button>
+          </div>
         </div>
-        <label className="qlang" title={t("lang.aria")}>
-          <span className="sr-only">{t("lang.aria")}</span>
-          <select
-            value={lang}
-            onChange={(e) => setLang(e.target.value as typeof lang)}
-            aria-label={t("lang.aria")}
-          >
-            {LANGS.map((l) => (
-              <option key={l.code} value={l.code}>{l.label}</option>
+
+        <div className="qbar__searchrow">
+          <label className="qsearch">
+            {icon.search}
+            <input
+              ref={searchRef}
+              type="search"
+              placeholder={t("search.placeholder")}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              aria-label={t("search.aria")}
+            />
+            <span className="kbd">⌘K</span>
+          </label>
+          <div className="chips">
+            {(["all", "highlighted"] as Filter[]).map((f) => (
+              <button key={f} className={`chip${filter === f ? " is-active" : ""}`} onClick={() => setFilter(f)}>
+                {f === "all" ? t("filter.all") : t("filter.highlighted")}
+              </button>
             ))}
-          </select>
-        </label>
-        <TokenAccess />
-        <button className="qicon" onClick={toggleTheme} title={t("theme.toggle")} aria-label={t("theme.toggle")}>
-          {theme === "ink" ? icon.sun : icon.moon}
-        </button>
-        <button className="btn btn--accent" onClick={() => setAdding((v) => !v)}>+ {t("save.link")}</button>
+          </div>
+        </div>
       </header>
 
       <main className="qmain">
         {adding && (
-          <form className="qadd" onSubmit={onAdd}>
-            {icon.link}
-            <input
-              ref={addRef}
-              type="url"
-              placeholder={t("add.placeholder")}
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={(e) => e.key === "Escape" && setAdding(false)}
-              aria-label={t("add.aria")}
-            />
-            <button className="btn btn--accent" type="submit" disabled={busy}>{busy ? t("add.saving") : t("add.save")}</button>
-          </form>
+          <>
+            <div className="qadd-overlay" onClick={() => setAdding(false)} />
+            <form className="qadd" onSubmit={onAdd}>
+              {icon.link}
+              <input
+                ref={addRef}
+                type="url"
+                placeholder={t("add.placeholder")}
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                onKeyDown={(e) => e.key === "Escape" && setAdding(false)}
+                aria-label={t("add.aria")}
+              />
+              <button className="btn btn--accent" type="submit" disabled={busy}>{busy ? t("add.saving") : t("add.save")}</button>
+              <button className="btn btn--ghost qadd-close" type="button" onClick={() => setAdding(false)}>✕</button>
+            </form>
+          </>
         )}
 
         {error && <p className="feedback" role="alert">{error}</p>}
@@ -215,6 +225,7 @@ export default function App() {
                       tabIndex={0}
                       aria-label={t("delete.aria", { title: it.title || it.url })}
                       onClick={(e) => { e.stopPropagation(); void onDelete(it.id); }}
+                      onTouchEnd={(e) => { e.stopPropagation(); }}
                       onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); void onDelete(it.id); } }}
                     >✕</span>
                   </span>
@@ -225,9 +236,13 @@ export default function App() {
         </section>
       </main>
 
+      <button className="mob-fab" onClick={() => setAdding(true)} aria-label={t("save.link")}>
+        +
+      </button>
+
       <footer className="statusbar">
         <div className="hints"><span><b>⌘K</b> {t("foot.search")}</span><span><b>↵</b> {t("foot.open")}</span></div>
-        <div>
+        <div className="statusbar__counts">
           <b>{items.length}</b> {p(items.length, "noun.article")} · <b>{totalMarks}</b> {p(totalMarks, "noun.highlight")}
         </div>
       </footer>
