@@ -42,11 +42,26 @@ func main() {
 		log.Printf("WARNING: TRACT_TOKEN is not set — every route is open (fine on localhost; NEVER expose this instance publicly without a token)")
 	}
 
+	// TRACT_PRIVATE=1 also gates the READ routes, so a public hostname does not
+	// hand the whole reading list to anyone who has the URL.
+	private := envTruthy("TRACT_PRIVATE")
+	if private && token == "" {
+		// Refuse rather than start half-secured. Private with no token is a gate
+		// with nothing to check: it would lock the owner out and protect nobody,
+		// and — worse — it would print a reassuring "private mode" line while
+		// every read stayed open.
+		log.Fatalf("TRACT_PRIVATE is set but TRACT_TOKEN is empty — private mode cannot gate anything without a token. Generate one with: openssl rand -hex 32")
+	}
+	if private {
+		log.Printf("private mode: read routes require a bearer token (GET / still serves the app shell)")
+	}
+
 	srv := &api.Server{
 		Store:        st,
 		Extractor:    extract.New(),
 		Static:       sub,
 		Token:        token,
+		Private:      private,
 		ExtraOrigins: splitCommaEnv("TRACT_ALLOWED_ORIGINS"),
 	}
 
@@ -73,6 +88,18 @@ func envOr(key, def string) string {
 
 // splitCommaEnv parses a comma-separated env var into its non-empty entries;
 // unset or empty yields nil.
+// envTruthy reads a boolean-ish env var. Accepts the forms a launchd plist or a
+// shell export actually produce; anything else (including "0", "false", "off"
+// and an empty value) is false, so a typo turns the mode OFF rather than
+// silently ON.
+func envTruthy(key string) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	}
+	return false
+}
+
 func splitCommaEnv(key string) []string {
 	var out []string
 	for _, v := range strings.Split(os.Getenv(key), ",") {

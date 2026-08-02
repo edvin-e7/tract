@@ -32,23 +32,46 @@ type Server struct {
 	// on every mutating route and on the URL-fetching route. Empty keeps all
 	// routes open — local single-user mode. See auth.go.
 	Token string
+	// Private, when true, extends the token requirement to the READ routes as
+	// well. Writes and the server-side fetch are gated either way — those are
+	// the world-writable/SSRF holes. Reads are a different question: with the
+	// gate as it stood, anyone who had the URL could page through the whole
+	// reading list and every highlight in it. That is fine on a LAN and wrong
+	// on a public hostname, so it is a mode rather than a default.
+	//
+	// Private has no effect without a Token: a gate with nothing to check would
+	// lock the owner out of their own instance and protect nobody. main.go
+	// refuses that combination loudly rather than starting half-secured.
+	Private bool
 	// ExtraOrigins are CORS origins allowed on top of the built-in native-shell
 	// origins (TRACT_ALLOWED_ORIGINS, comma-separated). See cors.go.
 	ExtraOrigins []string
 }
 
+// readGate wraps a read-only handler: gated in private mode, open otherwise.
+func (s *Server) readGate(next http.HandlerFunc) http.HandlerFunc {
+	if !s.Private {
+		return next
+	}
+	return s.requireToken(next)
+}
+
 // Routes builds the ServeMux. API routes first; a catch-all serves the SPA.
-// Mutating routes (and the server-side fetch) sit behind requireToken.
+// Mutating routes (and the server-side fetch) sit behind requireToken; the read
+// routes sit behind readGate, which is that same check only in private mode.
+//
+// GET / stays open in every mode on purpose: the SPA shell has to load before
+// it can ask for a token, and serving the app is not serving the data.
 func (s *Server) Routes() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("POST /api/items", s.requireToken(s.addItem))
-	mux.HandleFunc("GET /api/items", s.listItems)
-	mux.HandleFunc("GET /api/items/{id}", s.getItem)
+	mux.HandleFunc("GET /api/items", s.readGate(s.listItems))
+	mux.HandleFunc("GET /api/items/{id}", s.readGate(s.getItem))
 	mux.HandleFunc("DELETE /api/items/{id}", s.requireToken(s.deleteItem))
 	mux.HandleFunc("POST /api/items/{id}/highlights", s.requireToken(s.addHighlight))
 	mux.HandleFunc("DELETE /api/items/{id}/highlights/{hid}", s.requireToken(s.deleteHighlight))
-	mux.HandleFunc("GET /api/search", s.search)
+	mux.HandleFunc("GET /api/search", s.readGate(s.search))
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})

@@ -170,11 +170,24 @@ unset but `PORT` is (the convention PaaS platforms inject), Tract binds
   both highlight routes — requires `Authorization: Bearer <token>`. Read-only
   `GET`s (list, item, search, health) stay open, so a public URL works as a
   read-only demo while writes stay yours.
+- **`TRACT_PRIVATE=1`** (requires `TRACT_TOKEN`): extends the token requirement
+  to the read routes too — `GET /api/items`, `GET /api/items/{id}` and
+  `GET /api/search` answer `401` without a bearer token. `GET /` still serves
+  the app shell (it has to load before it can ask for a token) and
+  `GET /api/health` stays probe-able. This is the mode for a personal instance
+  on a public hostname, where the reading list itself is the private thing.
+  Private mode **without** a token is refused at startup rather than logging a
+  reassuring line while every read stays open.
 
 > ⚠️ **A public deploy without `TRACT_TOKEN` is world-writable.** Anyone who
 > finds the URL can delete your whole library and use `POST /api/items` to make
 > your server issue requests on their behalf. If it's reachable from the
 > internet, set the token — no exceptions.
+>
+> ⚠️ **And without `TRACT_PRIVATE=1`, a public deploy is world-*readable*.** The
+> token alone protects writes; anyone with the URL can still page through every
+> article you saved and every highlight you made. For a personal instance, set
+> both.
 
 Independent of the token, the article fetcher is hardened (always on, not
 configurable off): it refuses to connect to private, loopback, link-local,
