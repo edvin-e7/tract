@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.edvin.tract</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/Users/edvin/vibin/tract/scripts/launchd-run.sh</string>
+	</array>
+	<key>WorkingDirectory</key>
+	<string>/Users/edvin/vibin/tract</string>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<!-- Explicit DB path so the agent never depends on cwd resolution.
+		     TRACT_TOKEN is deliberately NOT here: EnvironmentVariables is plaintext.
+		     scripts/launchd-run.sh reads it from ~/.config/tract/token (0600) and
+		     refuses to start without it. -->
+		<key>TRACT_DB</key>
+		<string>/Users/edvin/vibin/tract/tract.db</string>
+		<!-- Explicit wildcard: the binary's bare default is now 127.0.0.1 (a
+		     token-less instance must not be reachable by accident). This box WANTS
+		     LAN reach — the phone reads the library over wifi — so it is asked for
+		     here, in the open, next to the token that gates every write. -->
+		<key>TRACT_ADDR</key>
+		<string>:8080</string>
+	</dict>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>/Users/edvin/Library/Logs/tract.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/edvin/Library/Logs/tract.log</string>
+</dict>
+</plist>

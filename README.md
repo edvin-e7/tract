@@ -153,18 +153,29 @@ go run ./cmd/tract
 make frontend-dev
 ```
 
-Environment: `TRACT_ADDR` (default `:8080`), `TRACT_DB` (default `tract.db`),
-`TRACT_TOKEN` (default unset — see [Security](#security)). If `TRACT_ADDR` is
-unset but `PORT` is (the convention PaaS platforms inject), Tract binds
-`:$PORT` — so the same binary drops into a host with zero config.
+Environment: `TRACT_ADDR` (default `127.0.0.1:8080` — **loopback**, see
+[Security](#security)), `TRACT_DB` (default `tract.db`), `TRACT_TOKEN` (default
+unset). If `TRACT_ADDR` is unset but `PORT` is (the convention PaaS platforms
+inject), Tract binds `:$PORT` — the wildcard, as a hosted deploy requires — so
+the same binary drops into a host with zero config.
 
 ## Security
 
 **Tract has no accounts.** Access control is a single bearer token:
 
-- **`TRACT_TOKEN` unset (default):** every route is open. That is the intended
-  zero-config mode for `localhost` — and **only** for localhost. The server
-  logs a loud warning at startup in this mode.
+- **`TRACT_TOKEN` unset (default):** every route is open — and the bare default
+  address is `127.0.0.1:8080`, so "open" means *open to this machine*. That is
+  the zero-config localhost mode, and the address now implements the sentence
+  instead of merely claiming it: reaching a token-less instance from another
+  device requires asking for it with `TRACT_ADDR`, which is the difference
+  between a choice and an accident. If you do bind a token-less instance to
+  anything but loopback, the server says so by name at startup.
+
+  > This paragraph used to say "for localhost — and **only** for localhost"
+  > while the default was `:8080`, the wildcard. Measured on the author's own
+  > machine: an instance started with no env at all answered anonymous
+  > `POST /api/items` from the LAN for months. Documentation is not a bind
+  > address.
 - **`TRACT_TOKEN` set:** every *mutating* route — `POST /api/items` (which also
   makes the server fetch a caller-supplied URL), `DELETE /api/items/{id}`, and
   both highlight routes — requires `Authorization: Bearer <token>`. Read-only
@@ -234,6 +245,26 @@ fly deploy
 **Any other host:** point it at the `Dockerfile` and mount a writable volume at
 `/data` (that's where `TRACT_DB` defaults inside the image). Hosts that inject
 `$PORT` (Render, Cloud Run) need no extra config — the server honors it.
+
+**As a background agent on your own Mac:** `deploy/com.edvin.tract.plist` is the
+`launchd` agent the author runs, and it is worth reading for one reason — the
+token is *not* in it. `EnvironmentVariables` is plaintext in a file that gets
+read, diffed and pasted, so the plist execs `scripts/launchd-run.sh`, which
+reads the token from `~/.config/tract/token` (mode `0600`, outside every git
+tree) and **refuses to start without it**. That refusal is the load-bearing
+part: an empty `TRACT_TOKEN` is a legal, quietly-open configuration, so a
+wrapper that fell back to starting anyway would reopen the whole library at
+boot and log nothing anyone would read.
+
+```bash
+umask 077 && mkdir -p ~/.config/tract && openssl rand -hex 32 > ~/.config/tract/token
+cp deploy/com.edvin.tract.plist ~/Library/LaunchAgents/   # edit the paths first
+launchctl load ~/Library/LaunchAgents/com.edvin.tract.plist
+```
+
+Then paste the same token into the web UI once (key button, top bar). It binds
+`:8080` deliberately — that agent is meant to be read from a phone on the same
+wifi — and every write on that interface answers `401` without the bearer token.
 
 ## Tests
 

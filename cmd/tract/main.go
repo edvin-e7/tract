@@ -6,6 +6,7 @@ import (
 	"embed"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -38,9 +39,7 @@ func main() {
 	}
 
 	token := os.Getenv("TRACT_TOKEN")
-	if token == "" {
-		log.Printf("WARNING: TRACT_TOKEN is not set — every route is open (fine on localhost; NEVER expose this instance publicly without a token)")
-	}
+	warnIfOpenToTheNetwork(addr, token)
 
 	// TRACT_PRIVATE=1 also gates the READ routes, so a public hostname does not
 	// hand the whole reading list to anyone who has the URL.
@@ -112,7 +111,27 @@ func splitCommaEnv(key string) []string {
 
 // resolveAddr picks the listen address. TRACT_ADDR wins when set; otherwise a
 // bare PORT (the convention PaaS platforms like Fly, Render and Cloud Run inject)
-// is honored so the single binary drops into a host with zero config; else :8080.
+// is honored so the single binary drops into a host with zero config; else
+// LOOPBACK — see below.
+//
+// WHY THE BARE DEFAULT IS 127.0.0.1 AND NOT :8080
+// ----------------------------------------------
+// It used to be ":8080", which is the wildcard: every interface, including the
+// wifi one. The Security section calls the token-less mode "the intended
+// zero-config mode for localhost — and only for localhost", and the startup
+// warning says "fine on localhost" — but the default address did not implement
+// that sentence. Measured on the author's own machine 2026-08-10, 2026-08-16 and
+// 2026-08-20: an instance started with no env at all was listening on *:8080 and
+// answering anonymous POST /api/items from the LAN, which is a writable library
+// plus an SSRF proxy (POST makes the server fetch a caller-supplied URL). The
+// documentation was right and the default disagreed with it.
+//
+// So the bare default now matches the promise. Reaching a token-less instance
+// from another device is still possible — it just has to be ASKED for, with
+// TRACT_ADDR, which is the difference between a choice and an accident. The two
+// deployment paths are untouched: PaaS hosts inject PORT (wildcard, as they must,
+// since the proxy connects from outside the container), and any explicit
+// TRACT_ADDR wins outright.
 func resolveAddr() string {
 	if v := os.Getenv("TRACT_ADDR"); v != "" {
 		return v
@@ -120,5 +139,48 @@ func resolveAddr() string {
 	if p := os.Getenv("PORT"); p != "" {
 		return ":" + p
 	}
-	return ":8080"
+	return "127.0.0.1:8080"
+}
+
+// warnIfOpenToTheNetwork prints the loud line when the process is BOTH
+// token-less and bound to something other than loopback — the combination that
+// makes the library world-writable to whoever shares the network.
+//
+// The old warning fired on "token is empty" alone and reassured the reader it was
+// "fine on localhost" without ever checking whether it was on localhost. A warning
+// whose text asserts a precondition it does not test is the same class of defect
+// as a check that cannot go red: it was printed, read, and believed, for months,
+// by a process listening on the wildcard.
+func warnIfOpenToTheNetwork(addr, token string) {
+	if token != "" {
+		return
+	}
+	if isLoopback(addr) {
+		log.Printf("no TRACT_TOKEN: every route is open, and the listener is loopback-only (%s), so only this machine can reach it", addr)
+		return
+	}
+	log.Printf("WARNING: TRACT_TOKEN is not set AND the listener is %s, which is not loopback — "+
+		"every route is open to anything that can reach this address, including POST /api/items, "+
+		"which makes this server fetch caller-supplied URLs. Set TRACT_TOKEN (openssl rand -hex 32) "+
+		"or bind TRACT_ADDR=127.0.0.1:8080.", addr)
+}
+
+// isLoopback reports whether a listen address can only be reached from this
+// machine. A bare ":8080" or an empty host is the WILDCARD, not localhost — that
+// conflation is the whole bug this function exists to avoid — so anything without
+// an explicit loopback host counts as open.
+func isLoopback(addr string) bool {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		// Not host:port at all (e.g. a unix socket path). Unknown is not safe.
+		return false
+	}
+	if host == "" {
+		return false // ":8080" — wildcard
+	}
+	if host == "localhost" {
+		return true
+	}
+	ip := net.ParseIP(strings.Trim(host, "[]"))
+	return ip != nil && ip.IsLoopback()
 }
