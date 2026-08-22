@@ -24,6 +24,14 @@
 		     here, in the open, next to the token that gates every write. -->
 		<key>TRACT_ADDR</key>
 		<string>:8080</string>
+		<!-- Private mode gates the READ routes too, which is the actual finding:
+		     the token alone protects writes, and the reading list itself was being
+		     served to every device on the wifi. GET / still returns the app shell
+		     (it has to load before it can ask for a token) and /api/health stays
+		     probe-able. Requires the token in each browser: key button, paste once.
+		     Undo by deleting these two lines and reloading the agent. -->
+		<key>TRACT_PRIVATE</key>
+		<string>1</string>
 	</dict>
 	<key>RunAtLoad</key>
 	<true/>

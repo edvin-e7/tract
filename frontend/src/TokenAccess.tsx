@@ -44,21 +44,35 @@ export function TokenAccess() {
     const serverChanged = server.trim().replace(/\/+$/, "") !== getServer();
     setServer(server);
     const v = value.trim();
+    const tokenChanged = v !== "" && v !== getToken();
     if (v) {
       setToken(v);
       setStored(true);
       setValue("");
     }
     setOpen(false);
-    // A server change redirects every API call to a new origin — reload so all
-    // views refetch against it instead of showing the old server's data.
-    if (serverChanged) window.location.reload();
+    // A server change redirects every API call to a new origin, and — since the
+    // token now rides on reads too — a token change changes what those calls are
+    // allowed to SEE. Both need the same refetch.
+    //
+    // Measured on the first-run path of a TRACT_PRIVATE=1 server before this
+    // line existed: open the app, get "this server requires an access token",
+    // paste the token, press Save — and the error stays, because nothing re-ran
+    // the load that failed. The token was stored correctly and the app looked
+    // exactly as broken as it had a second earlier. The fix is only visible on
+    // the one path where a user has no idea anything is wrong yet.
+    if (serverChanged || tokenChanged) window.location.reload();
   }
 
   function clear() {
+    const had = getToken() !== "";
     setToken("");
     setStored(false);
     setValue("");
+    // Same reason, other direction: on a private server, dropping the token
+    // must drop back to the locked state rather than leaving the last
+    // authorised render on screen looking like open access.
+    if (had) window.location.reload();
   }
 
   return (

@@ -84,12 +84,23 @@ export function failureMessage(
 
 // ---- access token (TRACT_TOKEN) ----------------------------------------
 // The server gates every mutating route behind `Authorization: Bearer <token>`
-// when TRACT_TOKEN is set (see internal/api/auth.go). The token lives in
-// localStorage — single-user tool, same trust level as the saved articles —
-// and is attached ONLY to mutating calls against serverBase() (same-origin on
-// the web, the user's configured server in the native shell); read-only GETs
-// stay bare so they keep working without a token, matching the server's
-// contract.
+// when TRACT_TOKEN is set, and TRACT_PRIVATE=1 extends that to the read routes
+// too (see internal/api/auth.go, internal/api/private_test.go). The token lives
+// in localStorage — single-user tool, same trust level as the saved articles —
+// and rides on every call built against serverBase() (same-origin on the web,
+// the user's configured server in the native shell), so it is only ever sent to
+// the user's own server.
+//
+// IT USED TO RIDE ONLY ON MUTATING CALLS, and that made TRACT_PRIVATE=1
+// unusable from this very UI: private mode answers 401 to GET /api/items,
+// GET /api/items/{id} and GET /api/search, and listItems/getItem/search sent no
+// Authorization header at all. The app shell loaded, then every read failed with
+// "this server requires an access token" — including for the owner, who had
+// already pasted the token. The server grew a mode its own client could not
+// speak, and nothing failed until someone turned the mode on.
+//
+// Sending it on reads costs nothing on an unprotected server: requireToken is a
+// no-op when Token == "", and an open read route ignores the header.
 
 const TOKEN_KEY = "tract-token";
 
@@ -111,8 +122,9 @@ export function setToken(token: string): void {
   }
 }
 
-/** Headers for mutating requests: JSON content type when there is a body,
- * plus the bearer token when one is stored. */
+/** Headers for any API request: JSON content type when there is a body, plus
+ * the bearer token when one is stored — on reads as well as writes, so
+ * TRACT_PRIVATE=1 servers are reachable from this client. */
 function authHeaders(json: boolean): HeadersInit {
   const h: Record<string, string> = {};
   if (json) h["Content-Type"] = "application/json";
@@ -149,9 +161,11 @@ async function expectNoContent(res: Response): Promise<void> {
 }
 
 export const api = {
-  listItems: () => fetch(apiUrl("/items")).then((r) => json<Item[]>(r)),
+  listItems: () =>
+    fetch(apiUrl("/items"), { headers: authHeaders(false) }).then((r) => json<Item[]>(r)),
 
-  getItem: (id: number) => fetch(apiUrl(`/items/${id}`)).then((r) => json<Item>(r)),
+  getItem: (id: number) =>
+    fetch(apiUrl(`/items/${id}`), { headers: authHeaders(false) }).then((r) => json<Item>(r)),
 
   addItem: (url: string) =>
     fetch(apiUrl("/items"), {
@@ -166,7 +180,9 @@ export const api = {
     ),
 
   search: (q: string) =>
-    fetch(apiUrl(`/search?q=${encodeURIComponent(q)}`)).then((r) => json<Item[]>(r)),
+    fetch(apiUrl(`/search?q=${encodeURIComponent(q)}`), {
+      headers: authHeaders(false),
+    }).then((r) => json<Item[]>(r)),
 
   addHighlight: (id: number, text: string) =>
     fetch(apiUrl(`/items/${id}/highlights`), {
