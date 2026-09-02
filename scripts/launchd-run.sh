@@ -12,7 +12,7 @@
 #
 # The token cannot live in the plist: EnvironmentVariables is plaintext in a file that
 # gets read, diffed and pasted. It lives in ~/.config/tract/token, mode 0600, outside
-# every git tree — the same shape context-os uses for its operator token.
+# every git tree — the standard shape for an operator token on a single-user host.
 #
 # REFUSING TO START IS THE POINT
 # ------------------------------
