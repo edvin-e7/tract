@@ -104,19 +104,43 @@ export function failureMessage(
 
 const TOKEN_KEY = "tract-token";
 
+// A build-time default, the exact sibling of VITE_DEFAULT_SERVER above and used the same
+// way: for a PERSONAL build of your own app, against your own server, on your own device.
+//
+// Why it exists. TRACT_PRIVATE=1 gates the read routes, and the token lives in
+// localStorage PER INSTALL — so a freshly installed app on a phone shows the shell and
+// then 401s on every read until someone types the token in. That is a real first-run
+// cliff for a single-user tool whose whole point is that the library is just there.
+//
+// Why it is not a leak. The value never appears in this repo: it is injected at build
+// time by whoever runs the build, exactly like the server address, and a build without
+// it behaves as it always did. It does not weaken the server — TRACT_PRIVATE still
+// demands the token; this only decides whether the client already knows it. A build made
+// for someone else, or a hosted build, simply omits it.
+//
+// localStorage still WINS when it holds anything, so pasting a different token, or
+// pressing Clear, keeps working and is not silently overridden by the build.
+const DEFAULT_TOKEN = (import.meta.env.VITE_DEFAULT_TOKEN ?? "").trim();
+
 export function getToken(): string {
   try {
-    return localStorage.getItem(TOKEN_KEY) ?? "";
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (stored !== null) return stored;
+    return DEFAULT_TOKEN;
   } catch {
-    return ""; // localStorage unavailable — behave as tokenless
+    return DEFAULT_TOKEN; // localStorage unavailable — the build-time default still applies
   }
 }
 
 export function setToken(token: string): void {
   try {
     const t = token.trim();
-    if (t) localStorage.setItem(TOKEN_KEY, t);
-    else localStorage.removeItem(TOKEN_KEY);
+    // Clear WRITES AN EMPTY STRING rather than removing the key. With a build-time
+    // default in play, removeItem would hand the next read straight back to that default
+    // — so "Clear" would appear to do nothing and the app would stay unlocked, which is
+    // the opposite of what the button says. An empty stored value is an explicit choice
+    // and outranks the build.
+    localStorage.setItem(TOKEN_KEY, t);
   } catch {
     /* persistence best-effort */
   }
