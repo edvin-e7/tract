@@ -1,29 +1,55 @@
 <!doctype html>
-<html lang="en" data-theme="ink">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- viewport-fit=cover is what lets the CSS reach the notch/home-indicator via
-         env(safe-area-inset-*). Pinch-zoom stays ENABLED on purpose: the usual reason
-         to set user-scalable=no is iOS auto-zooming when a <16px input takes focus, and
-         index.css already fixes that at the source (`input, select, button { font-size:
-         16px }` under max-width: 768px). Disabling zoom on a *reading* app to work around
-         a problem that is already solved would trade WCAG 1.4.4 for nothing. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="theme-color" content="#14130f" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#f4f0e7" media="(prefers-color-scheme: light)" />
-    <title>Tract — read later, read clean</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400;1,9..144,500&family=Manrope:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap"
-      rel="stylesheet"
-    />
-    <script type="module" crossorigin src="./assets/index-DcSvV23G.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-t4xNAX-3.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>tract — frontend not built</title>
+    <!--
+      PLACEHOLDER. This file exists so `//go:embed all:dist` in main.go stays valid in a
+      fresh clone, where cmd/tract/dist/assets/ is gitignored and absent.
+
+      It must reference NOTHING. A previous version of this file was a real Vite build
+      whose two hashed bundles were not committed, and the failure was silent: spaHandler
+      rewrites every missing path to "/", so the module script tag came back
+      as text/html with 200 OK, the browser refused to execute it, and the page rendered
+      blank with no error in any log. cmd/tract/embed_test.go fails if that happens again.
+
+      `scripts/build.sh` overwrites this with the real build, then restores it after
+      `go build` has already read it — so the binary is correct and the tree stays clean.
+    -->
+    <style>
+      :root { color-scheme: light dark; --bg:#fbfaf7; --fg:#1a1917; --mut:#6b6862; --line:#e4e0d8; --acc:#7a5c3e; }
+      @media (prefers-color-scheme: dark) {
+        :root { --bg:#14130f; --fg:#ece8e0; --mut:#948e83; --line:#2c2a24; --acc:#c9a227; }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 2rem;
+        background: var(--bg); color: var(--fg);
+        font: 400 16px/1.6 ui-sans-serif, -apple-system, "Manrope", system-ui, sans-serif;
+      }
+      main { max-width: 34rem; }
+      h1 { margin: 0 0 .35rem; font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; }
+      p  { margin: 0 0 1.25rem; color: var(--mut); }
+      pre {
+        margin: 0; padding: .85rem 1rem; overflow-x: auto;
+        border: 1px solid var(--line); border-radius: 8px; background: transparent;
+        font: 400 13.5px/1.5 ui-monospace, "Space Mono", SFMono-Regular, Menlo, monospace;
+      }
+      code { color: var(--acc); }
+      small { display: block; margin-top: 1.25rem; color: var(--mut); font-size: 13px; }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <main>
+      <h1>tract is running — the frontend is not built</h1>
+      <p>
+        The server and its JSON API are up. This page is the placeholder that keeps the
+        Go embed valid in a clone; the real interface has not been compiled into this
+        binary yet.
+      </p>
+      <pre><code>./scripts/build.sh</code></pre>
+      <small>Builds the frontend, stages it into the embed directory, and rebuilds the binary.</small>
+    </main>
   </body>
 </html>
