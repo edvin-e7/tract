@@ -64,11 +64,22 @@ func main() {
 		ExtraOrigins: splitCommaEnv("TRACT_ALLOWED_ORIGINS"),
 	}
 
+	// TRACT_ACCESS_LOG=1 prints one line per request: method, path, status, and the
+	// caller. Off by default because this is a single-user tool and an always-on access
+	// log is noise — but a self-hosted server that cannot say whether a device ever
+	// reached it makes "my phone shows no data" unanswerable from the machine side. It
+	// deliberately does NOT log the Authorization header, only whether one was present.
+	handler := srv.Handler()
+	if envTruthy("TRACT_ACCESS_LOG") {
+		handler = accessLog(handler)
+		log.Printf("access log: on (TRACT_ACCESS_LOG=1)")
+	}
+
 	httpSrv := &http.Server{
 		Addr: addr,
 		// Handler = Routes wrapped in the native-shell CORS layer (see
 		// internal/api/cors.go).
-		Handler:           srv.Handler(),
+		Handler:           handler,
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
@@ -183,4 +194,39 @@ func isLoopback(addr string) bool {
 	}
 	ip := net.ParseIP(strings.Trim(host, "[]"))
 	return ip != nil && ip.IsLoopback()
+}
+
+// statusRecorder captures the status code, which http.ResponseWriter does not expose.
+// Defaults to 200 because a handler that writes a body without calling WriteHeader has
+// implicitly sent one — reporting 0 there would invent a failure.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (r *statusRecorder) WriteHeader(code int) {
+	r.status = code
+	r.ResponseWriter.WriteHeader(code)
+}
+
+// accessLog reports who reached this server and what they got. The token itself is
+// never logged — only whether the request carried one, which is the bit that explains a
+// 401 without putting a credential in a file.
+func accessLog(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		start := time.Now()
+		next.ServeHTTP(rec, r)
+		auth := "no-token"
+		if r.Header.Get("Authorization") != "" {
+			auth = "token"
+		}
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			origin = "-"
+		}
+		log.Printf("%s %s -> %d (%s, from %s, origin %s, %s)",
+			r.Method, r.URL.Path, rec.status, auth, r.RemoteAddr, origin,
+			time.Since(start).Round(time.Millisecond))
+	})
 }
